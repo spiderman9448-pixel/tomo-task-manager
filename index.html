@@ -72,21 +72,19 @@
     .week-day:active { background: var(--bg); }
     .week-day.drop-target { background: rgba(59,130,246,0.15); transform: scale(1.1); }
     .task-card.drag-active { opacity: 0.6; transform: scale(0.95); }
-    .week-day .dow { font-size: 11px; color: var(--text-sub); font-weight: 500; }
+    .week-day .dow { font-size: 11px; color: var(--text-sub); font-weight: 500; margin-bottom: 4px; }
     .week-day .day-num {
-      font-size: 18px; font-weight: 700; width: 36px; height: 36px;
+      font-size: 16px; font-weight: 700; width: 32px; height: 32px;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 50%; margin-top: 2px;
+      border-radius: 50%;
     }
-    .week-day.today .day-num { background: var(--primary); color: #fff; }
-    .week-day.selected .day-num { outline: 2px solid var(--primary); outline-offset: 2px; }
-    .week-day .dot-row { display: flex; gap: 2px; margin-top: 3px; height: 5px; }
-    .week-day .task-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .week-day.selected .day-num { box-shadow: 0 0 0 2px var(--text-sub); }
+    .week-day .dot-row { display: flex; gap: 2px; margin-top: 4px; height: 5px; }
+    .week-day .task-dot { width: 4px; height: 4px; border-radius: 50%; }
     .week-day.sunday .dow, .week-day.sunday .day-num { color: var(--sun); }
     .week-day.saturday .dow, .week-day.saturday .day-num { color: var(--sat); }
-    .week-day.today .day-num {
-      background: #888; color: #fff;
-    }
+    .week-day.today .day-num { background: #888; color: #fff; }
+    .week-day.today.selected .day-num { box-shadow: 0 0 0 2px #888; }
     .week-day.today .dow { font-weight: 700; }
 
     /* Day navigator */
@@ -745,6 +743,7 @@
           <div class="task-info" onclick="if(!this.closest('.task-card').classList.contains('swiped'))toggleSubtasks('${task.id}')">
             <div class="task-name-row">
               <span class="task-name">${escapeHtml(task.name)}</span>
+              ${subInfo}
               ${dateLabel ? `<span class="task-date${od ? ' overdue' : ''}">${dateLabel}</span>` : ''}
             </div>
           </div>
@@ -820,26 +819,33 @@
   // Swipe
   function initSwipe() {
     document.querySelectorAll('.task-card').forEach(card => {
-      let sx = 0, cx = 0, sw = false;
+      let sx = 0, cx = 0, moved = false, sw = false;
       card.addEventListener('touchstart', e => {
         if (e.target.closest('.checkbox')) return;
-        sx = e.touches[0].clientX; sw = true; card.style.transition = 'none';
+        sx = e.touches[0].clientX; cx = sx; moved = false; sw = true;
+        card.style.transition = 'none';
         document.querySelectorAll('.task-card.swiped').forEach(c => {
           if (c !== card) { c.classList.remove('swiped'); c.style.transform = ''; }
         });
       }, { passive: true });
       card.addEventListener('touchmove', e => {
         if (!sw) return; cx = e.touches[0].clientX;
+        if (Math.abs(cx - sx) > 8) moved = true;
+        if (!moved) return;
         let d = cx - sx; if (card.classList.contains('swiped')) d -= 112;
         d = Math.max(-112, Math.min(0, d));
         card.style.transform = `translateX(${d}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
         if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
+        if (!moved) {
+          card.style.transform = card.classList.contains('swiped') ? 'translateX(-112px)' : '';
+          return;
+        }
         const d = cx - sx;
-        if (d < -40 && !card.classList.contains('swiped')) {
+        if (d < -50 && !card.classList.contains('swiped')) {
           card.classList.add('swiped'); card.style.transform = 'translateX(-112px)';
-        } else if (d > 40 && card.classList.contains('swiped')) {
+        } else if (d > 50 && card.classList.contains('swiped')) {
           card.classList.remove('swiped'); card.style.transform = '';
         } else {
           card.style.transform = card.classList.contains('swiped') ? 'translateX(-112px)' : '';
@@ -983,6 +989,59 @@
       }
     }
     dragTaskId = null;
+  });
+
+  // Long press drag to reorder
+  let reorderTaskId = null, reorderTimer = null, reorderStartY = 0;
+  document.addEventListener('touchstart', e => {
+    const card = e.target.closest('.task-card');
+    if (!card || e.target.closest('.checkbox') || e.target.closest('.icon-btn')) return;
+    reorderStartY = e.touches[0].clientY;
+    reorderTimer = setTimeout(() => {
+      reorderTaskId = card.dataset.id;
+      card.classList.add('drag-active');
+      try { navigator.vibrate(30); } catch(ex) {}
+    }, 500);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!reorderTaskId) {
+      if (reorderTimer && e.touches[0]) {
+        const dy = Math.abs(e.touches[0].clientY - reorderStartY);
+        if (dy > 10) clearTimeout(reorderTimer);
+      }
+      return;
+    }
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    document.querySelectorAll('.task-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+    const target = el && el.closest('.task-card');
+    if (target && target.dataset.id !== reorderTaskId) {
+      target.style.borderTop = '2px solid #888';
+    }
+    document.querySelectorAll('.task-card').forEach(c => {
+      if (c.dataset.id !== reorderTaskId && c !== target) c.style.borderTop = '';
+    });
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    clearTimeout(reorderTimer);
+    if (!reorderTaskId) return;
+    document.querySelectorAll('.drag-active').forEach(c => c.classList.remove('drag-active'));
+    document.querySelectorAll('.task-card').forEach(c => c.style.borderTop = '');
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const target = el && el.closest('.task-card');
+    if (target && target.dataset.id !== reorderTaskId) {
+      const fromIdx = tasks.findIndex(t => t.id === reorderTaskId);
+      const toIdx = tasks.findIndex(t => t.id === target.dataset.id);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const [moved] = tasks.splice(fromIdx, 1);
+        tasks.splice(toIdx, 0, moved);
+        save(); render();
+      }
+    }
+    reorderTaskId = null;
   });
 
   selectedDate = todayStr();
