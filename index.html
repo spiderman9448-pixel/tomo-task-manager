@@ -109,13 +109,25 @@
       font-size: 15px; font-weight: 700;
     }
     .day-card.today .day-num-big { color: var(--primary); }
-    .day-card.holiday .day-num-big { color: var(--holiday); }
+    .day-card.holiday .day-num-big, .day-card.sunday .day-num-big { color: var(--sun); }
+    .day-card.saturday .day-num-big { color: var(--sat); }
     .day-card .day-sub {
       font-size: 12px; color: var(--text-sub); margin-top: 3px;
     }
     .day-card .day-holiday {
       font-size: 11px; color: var(--holiday); font-weight: 600; margin-top: 2px;
     }
+
+    /* Memo */
+    .memo-area { margin-bottom: 12px; }
+    .memo-area textarea {
+      width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; font-family: inherit;
+      background: var(--surface); color: var(--text); outline: none;
+      resize: none; min-height: 40px;
+    }
+    .memo-area textarea:focus { border-color: var(--primary); }
+    .memo-area textarea::placeholder { color: #bbb; }
 
     .filter-pills { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
     .pill {
@@ -141,15 +153,19 @@
     /* Task */
     .swipe-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
     .swipe-actions {
-      position: absolute; right: 0; top: 0; height: 100%;
+      position: absolute; right: 0; top: 0;
+      height: auto; min-height: 48px;
       display: flex; align-items: stretch;
     }
+    .task-card ~ .subtask-area { position: relative; z-index: 2; }
     .swipe-btn {
-      width: 65px; border: none; cursor: pointer;
-      font-size: 12px; font-weight: 600; color: #fff;
-      display: flex; align-items: center; justify-content: center;
+      width: 56px; border: none; cursor: pointer;
+      font-size: 11px; font-weight: 600; color: #fff;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     }
-    .swipe-btn.edit-btn { background: var(--primary); }
+    .swipe-btn .swipe-icon { font-size: 16px; }
+    .swipe-btn.move-btn { background: #5ec2b0; }
+    .swipe-btn.edit-btn { background: #888; }
     .swipe-btn.del-btn { background: var(--accent); }
 
     .task-card {
@@ -160,7 +176,7 @@
       border-left: 4px solid transparent;
       transition: transform 0.2s ease; touch-action: pan-y;
     }
-    .task-card.swiped { transform: translateX(-130px); }
+    .task-card.swiped { transform: translateX(-168px); }
     .task-card.completed { opacity: 0.45; }
     .task-card.completed .task-name { text-decoration: line-through; }
 
@@ -178,6 +194,10 @@
     .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
     .task-date.overdue { color: var(--accent); font-weight: 600; }
     .subtask-count { font-size: 11px; color: var(--text-sub); }
+    .cat-tag {
+      font-size: 10px; font-weight: 600; padding: 1px 7px;
+      border-radius: 4px; color: #fff; white-space: nowrap; flex-shrink: 0;
+    }
 
     .desktop-actions { display: none; gap: 4px; flex-shrink: 0; }
     .icon-btn {
@@ -304,14 +324,16 @@
 
   <div class="week-cal">
     <div class="week-header">
-      <span class="month-label" id="monthLabel"></span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="settings-btn" onclick="openCatSettings()" title="カテゴリ設定">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <span class="month-label" id="monthLabel"></span>
+      </div>
       <div class="week-nav">
         <button onclick="moveWeek(-1)">&#9664;</button>
         <button onclick="moveWeek(0)">今</button>
         <button onclick="moveWeek(1)">&#9654;</button>
-        <button class="settings-btn" onclick="openCatSettings()" title="カテゴリ設定">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
       </div>
     </div>
     <div class="week-days" id="weekDays"></div>
@@ -320,6 +342,11 @@
   <!-- Day swipe navigator -->
   <div class="day-nav" id="dayNav">
     <div class="day-nav-inner" id="dayNavInner"></div>
+  </div>
+
+  <!-- Daily memo -->
+  <div class="memo-area" id="memoArea">
+    <textarea id="memoInput" placeholder="今日のメモ..." rows="2" oninput="saveMemo()"></textarea>
   </div>
 
   <div class="filter-pills" id="filterPills">
@@ -335,6 +362,19 @@
 
 <!-- FAB -->
 <button class="fab" onclick="openAddModal()">+</button>
+
+<!-- Move Date Modal -->
+<div class="modal-overlay" id="moveModal">
+  <div class="modal">
+    <h2>日付を移動</h2>
+    <label>移動先の日付</label>
+    <input type="date" id="moveDate">
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeMoveModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="confirmMove()">移動</button>
+    </div>
+  </div>
+</div>
 
 <!-- Add Modal -->
 <div class="modal-overlay" id="addModal">
@@ -452,6 +492,21 @@
 
   dateInput.value = todayStr();
 
+  // Daily memos
+  const MEMO_KEY = 'task-manager-memos';
+  let memos = JSON.parse(localStorage.getItem(MEMO_KEY) || '{}');
+  function loadMemo() {
+    const ds = selectedDate || todayStr();
+    $('memoInput').value = memos[ds] || '';
+  }
+  window.saveMemo = function() {
+    const ds = selectedDate || todayStr();
+    const val = $('memoInput').value;
+    if (val.trim()) memos[ds] = val;
+    else delete memos[ds];
+    localStorage.setItem(MEMO_KEY, JSON.stringify(memos));
+  };
+
   const addModal = $('addModal');
   window.openAddModal = function() {
     if (somedayMode) toggleSomeday();
@@ -528,9 +583,11 @@
       const isT = str === todayStr();
       const hol = getHoliday(str);
       const taskCount = tasks.filter(t => t.date === str && !t.completed).length;
+      const dow = date.getDay();
       let cls = 'day-card';
       if (isT) cls += ' today';
-      if (hol) cls += ' holiday';
+      if (hol || dow === 0) cls += ' sunday holiday';
+      if (dow === 6) cls += ' saturday';
       const relLabel = formatDayLabel(str);
       return `<div class="${cls}">
         <div class="day-num-big">${date.getDate()}<span class="dow-small">(${DOW[date.getDay()]})</span></div>
@@ -673,15 +730,17 @@
     return `
       <div class="swipe-wrapper">
         <div class="swipe-actions">
-          <button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')">編集</button>
-          <button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')">削除</button>
+          <button class="swipe-btn move-btn" onclick="openMoveDate('${task.id}')"><span class="swipe-icon">&#8644;</span>移動</button>
+          <button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')"><span class="swipe-icon">&#9998;</span>編集</button>
+          <button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')"><span class="swipe-icon">&#10005;</span>削除</button>
         </div>
         <div class="task-card ${task.completed ? 'completed' : ''}" style="border-left-color:${cat.color}" data-id="${task.id}">
-          <div class="checkbox" onclick="toggleComplete('${task.id}')"></div>
+          <div class="checkbox" onclick="event.stopPropagation(); toggleComplete('${task.id}')"></div>
           <div class="task-info" onclick="toggleSubtasks('${task.id}')">
             <div class="task-name-row">
               <span class="task-name">${escapeHtml(task.name)}</span>
               ${subInfo}
+              <span class="cat-tag" style="background:${cat.color}">${cat.name}</span>
               ${dateLabel ? `<span class="task-date${od ? ' overdue' : ''}">${dateLabel}</span>` : ''}
             </div>
           </div>
@@ -706,7 +765,7 @@
   }
 
   function render() {
-    updateStats(); renderWeek();
+    updateStats(); renderWeek(); loadMemo();
     const filtered = filterTasks();
     if (filtered.length === 0) {
       $('taskList').innerHTML = '<div class="empty-state"><div class="icon">&#10024;</div><p>タスクがありません</p></div>';
@@ -769,19 +828,19 @@
       }, { passive: true });
       card.addEventListener('touchmove', e => {
         if (!sw) return; cx = e.touches[0].clientX;
-        let d = cx - sx; if (card.classList.contains('swiped')) d -= 130;
-        d = Math.max(-130, Math.min(0, d));
+        let d = cx - sx; if (card.classList.contains('swiped')) d -= 168;
+        d = Math.max(-168, Math.min(0, d));
         card.style.transform = `translateX(${d}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
         if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
         const d = cx - sx;
         if (d < -40 && !card.classList.contains('swiped')) {
-          card.classList.add('swiped'); card.style.transform = 'translateX(-130px)';
+          card.classList.add('swiped'); card.style.transform = 'translateX(-168px)';
         } else if (d > 40 && card.classList.contains('swiped')) {
           card.classList.remove('swiped'); card.style.transform = '';
         } else {
-          card.style.transform = card.classList.contains('swiped') ? 'translateX(-130px)' : '';
+          card.style.transform = card.classList.contains('swiped') ? 'translateX(-168px)' : '';
         }
       });
     });
@@ -805,6 +864,28 @@
     if (t) { t.completed = !t.completed; save(); render(); }
   };
   window.deleteTask = function(id) { tasks = tasks.filter(t => t.id !== id); save(); render(); };
+
+  // Move date
+  let movingTaskId = null;
+  const moveModal = $('moveModal');
+  window.openMoveDate = function(id) {
+    movingTaskId = id;
+    const t = tasks.find(t => t.id === id);
+    $('moveDate').value = t && t.date ? t.date : todayStr();
+    moveModal.classList.add('show');
+  };
+  window.closeMoveModal = function() { moveModal.classList.remove('show'); movingTaskId = null; };
+  moveModal.addEventListener('click', e => { if (e.target === moveModal) closeMoveModal(); });
+  window.confirmMove = function() {
+    const t = tasks.find(t => t.id === movingTaskId);
+    if (t) {
+      t.date = $('moveDate').value;
+      save();
+      if (t.date) selectDay(t.date);
+      else render();
+    }
+    closeMoveModal();
+  };
   window.openEdit = function(id) {
     const t = tasks.find(t => t.id === id); if (!t) return;
     editingId = id; editName.value = t.name;
