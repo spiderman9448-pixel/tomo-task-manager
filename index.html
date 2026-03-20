@@ -609,7 +609,7 @@
       if (dow === 6) cls += ' saturday';
       const relLabel = formatDayLabel(str);
       return `<div class="${cls}">
-        <div class="day-num-big">${date.getDate()}<span class="dow-small">(${DOW[date.getDay()]})</span></div>
+        <div class="day-num-big">${date.getMonth()+1}月${date.getDate()}日<span class="dow-small">(${DOW[date.getDay()]})</span></div>
         <div class="day-sub">${relLabel ? relLabel + ' ・ ' : ''}${taskCount > 0 ? taskCount + '件のタスク' : 'タスクなし'}</div>
         ${hol ? `<div class="day-holiday">${hol}</div>` : ''}
       </div>`;
