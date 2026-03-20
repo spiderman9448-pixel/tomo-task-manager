@@ -17,7 +17,7 @@
       --bg: #f7f7f5; --surface: #fff; --text: #2d2d2d; --text-sub: #999;
       --border: #ebebeb; --primary: #666; --primary-hover: #555;
       --accent: #f0887d; --accent-bg: #fff5f4;
-      --sat: #6ba3d6; --sun: #e07070; --holiday: #e07070;
+      --sat: #5590c8; --sun: #d45555; --holiday: #d45555;
       --radius: 14px; --shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
     body {
@@ -152,13 +152,14 @@
     .task-list { display: flex; flex-direction: column; gap: 10px; }
     .swipe-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
     .swipe-actions {
-      position: absolute; right: 0; top: 0;
-      height: auto; min-height: 48px;
+      position: absolute; top: 0; bottom: 0;
       display: flex; align-items: stretch;
     }
+    .swipe-actions.swipe-left { right: 0; }
+    .swipe-actions.swipe-right { left: 0; }
     .task-card ~ .subtask-area { position: relative; z-index: 2; }
     .swipe-btn {
-      width: 56px; border: none; cursor: pointer;
+      width: 72px; border: none; cursor: pointer;
       font-size: 11px; font-weight: 600; color: #fff;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     }
@@ -178,6 +179,14 @@
     .task-card.swiped { transform: translateX(-112px); }
     .task-card.completed { opacity: 0.45; }
     .task-card.completed .task-name { text-decoration: line-through; }
+
+    .drag-handle {
+      display: flex; align-items: center; justify-content: center;
+      width: 18px; flex-shrink: 0; color: #ccc; font-size: 12px;
+      cursor: grab; touch-action: none;
+    }
+    .task-card.dragging { opacity: 0.6; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 10; }
+    .drag-target { border-top: 2px solid #888 !important; }
 
     .task-card .checkbox {
       width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px;
@@ -408,6 +417,10 @@
     <input type="date" id="editDate">
     <label>カテゴリ</label>
     <select id="editCat"></select>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-cancel" style="flex:1" onclick="moveTaskUp()">&#8593; 上へ</button>
+      <button class="btn btn-cancel" style="flex:1" onclick="moveTaskDown()">&#8595; 下へ</button>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-cancel" id="editCancel">キャンセル</button>
       <button class="btn btn-primary" id="editSave">保存</button>
@@ -734,11 +747,10 @@
     const cat = getCat(task.category);
     return `
       <div class="swipe-wrapper">
-        <div class="swipe-actions">
-          <button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')"><span class="swipe-icon">&#9998;</span>編集</button>
-          <button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')"><span class="swipe-icon">&#10005;</span>削除</button>
-        </div>
+        <div class="swipe-actions swipe-right"><button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')"><span class="swipe-icon">&#9998;</span>編集</button></div>
+        <div class="swipe-actions swipe-left"><button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')"><span class="swipe-icon">&#10005;</span>削除</button></div>
         <div class="task-card ${task.completed ? 'completed' : ''}" style="border-left-color:${cat.color}" data-id="${task.id}">
+          <div class="drag-handle" data-drag="${task.id}">&#8942;</div>
           <div class="checkbox" onclick="event.stopPropagation(); toggleComplete('${task.id}')"></div>
           <div class="task-info" onclick="if(!this.closest('.task-card').classList.contains('swiped'))toggleSubtasks('${task.id}')">
             <div class="task-name-row">
@@ -819,36 +831,35 @@
   // Swipe
   function initSwipe() {
     document.querySelectorAll('.task-card').forEach(card => {
-      let sx = 0, cx = 0, moved = false, sw = false;
+      let sx = 0, cx = 0, moved = false, sw = false, dir = 0;
       card.addEventListener('touchstart', e => {
         if (e.target.closest('.checkbox')) return;
-        sx = e.touches[0].clientX; cx = sx; moved = false; sw = true;
+        sx = e.touches[0].clientX; cx = sx; moved = false; sw = true; dir = 0;
         card.style.transition = 'none';
-        document.querySelectorAll('.task-card.swiped').forEach(c => {
-          if (c !== card) { c.classList.remove('swiped'); c.style.transform = ''; }
+        // Close other cards
+        document.querySelectorAll('.task-card').forEach(c => {
+          if (c !== card) { c.style.transform = ''; c.dataset.swipeDir = ''; }
         });
       }, { passive: true });
       card.addEventListener('touchmove', e => {
         if (!sw) return; cx = e.touches[0].clientX;
-        if (Math.abs(cx - sx) > 8) moved = true;
+        const d = cx - sx;
+        if (Math.abs(d) > 8) moved = true;
         if (!moved) return;
-        let d = cx - sx; if (card.classList.contains('swiped')) d -= 112;
-        d = Math.max(-112, Math.min(0, d));
-        card.style.transform = `translateX(${d}px)`;
+        // Left swipe: delete (max -72), Right swipe: edit (max +72)
+        const clamped = Math.max(-72, Math.min(72, d));
+        card.style.transform = `translateX(${clamped}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
         if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
-        if (!moved) {
-          card.style.transform = card.classList.contains('swiped') ? 'translateX(-112px)' : '';
-          return;
-        }
+        if (!moved) { card.style.transform = ''; return; }
         const d = cx - sx;
-        if (d < -50 && !card.classList.contains('swiped')) {
-          card.classList.add('swiped'); card.style.transform = 'translateX(-112px)';
-        } else if (d > 50 && card.classList.contains('swiped')) {
-          card.classList.remove('swiped'); card.style.transform = '';
+        if (d < -50) {
+          card.style.transform = 'translateX(-72px)'; card.dataset.swipeDir = 'left';
+        } else if (d > 50) {
+          card.style.transform = 'translateX(72px)'; card.dataset.swipeDir = 'right';
         } else {
-          card.style.transform = card.classList.contains('swiped') ? 'translateX(-112px)' : '';
+          card.style.transform = ''; card.dataset.swipeDir = '';
         }
       });
     });
@@ -901,6 +912,15 @@
     editModal.classList.add('show');
   };
   function closeEdit() { editModal.classList.remove('show'); editingId = null; }
+
+  window.moveTaskUp = function() {
+    const idx = tasks.findIndex(t => t.id === editingId);
+    if (idx > 0) { [tasks[idx-1], tasks[idx]] = [tasks[idx], tasks[idx-1]]; save(); render(); }
+  };
+  window.moveTaskDown = function() {
+    const idx = tasks.findIndex(t => t.id === editingId);
+    if (idx < tasks.length - 1) { [tasks[idx], tasks[idx+1]] = [tasks[idx+1], tasks[idx]]; save(); render(); }
+  };
   $('editCancel').addEventListener('click', closeEdit);
   editModal.addEventListener('click', e => { if (e.target === editModal) closeEdit(); });
   $('editSave').addEventListener('click', () => {
@@ -991,57 +1011,46 @@
     dragTaskId = null;
   });
 
-  // Long press drag to reorder
-  let reorderTaskId = null, reorderTimer = null, reorderStartY = 0;
+
+  // Drag handle reorder
+  let dragId = null;
   document.addEventListener('touchstart', e => {
-    const card = e.target.closest('.task-card');
-    if (!card || e.target.closest('.checkbox') || e.target.closest('.icon-btn')) return;
-    reorderStartY = e.touches[0].clientY;
-    reorderTimer = setTimeout(() => {
-      reorderTaskId = card.dataset.id;
-      card.classList.add('drag-active');
-      try { navigator.vibrate(30); } catch(ex) {}
-    }, 500);
-  }, { passive: true });
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    e.preventDefault();
+    dragId = handle.dataset.drag;
+    const card = handle.closest('.task-card');
+    if (card) card.classList.add('dragging');
+    try { navigator.vibrate(20); } catch(ex) {}
+  }, { passive: false });
 
   document.addEventListener('touchmove', e => {
-    if (!reorderTaskId) {
-      if (reorderTimer && e.touches[0]) {
-        const dy = Math.abs(e.touches[0].clientY - reorderStartY);
-        if (dy > 10) clearTimeout(reorderTimer);
-      }
-      return;
-    }
+    if (!dragId) return;
+    e.preventDefault();
     const touch = e.touches[0];
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    document.querySelectorAll('.task-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+    document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
     const target = el && el.closest('.task-card');
-    if (target && target.dataset.id !== reorderTaskId) {
-      target.style.borderTop = '2px solid #888';
-    }
-    document.querySelectorAll('.task-card').forEach(c => {
-      if (c.dataset.id !== reorderTaskId && c !== target) c.style.borderTop = '';
-    });
-  }, { passive: true });
+    if (target && target.dataset.id !== dragId) target.classList.add('drag-target');
+  }, { passive: false });
 
   document.addEventListener('touchend', e => {
-    clearTimeout(reorderTimer);
-    if (!reorderTaskId) return;
-    document.querySelectorAll('.drag-active').forEach(c => c.classList.remove('drag-active'));
-    document.querySelectorAll('.task-card').forEach(c => c.style.borderTop = '');
+    if (!dragId) return;
+    document.querySelectorAll('.dragging').forEach(c => c.classList.remove('dragging'));
+    document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
     const touch = e.changedTouches[0];
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
     const target = el && el.closest('.task-card');
-    if (target && target.dataset.id !== reorderTaskId) {
-      const fromIdx = tasks.findIndex(t => t.id === reorderTaskId);
-      const toIdx = tasks.findIndex(t => t.id === target.dataset.id);
-      if (fromIdx !== -1 && toIdx !== -1) {
-        const [moved] = tasks.splice(fromIdx, 1);
-        tasks.splice(toIdx, 0, moved);
+    if (target && target.dataset.id !== dragId) {
+      const fi = tasks.findIndex(t => t.id === dragId);
+      const ti = tasks.findIndex(t => t.id === target.dataset.id);
+      if (fi !== -1 && ti !== -1) {
+        const [moved] = tasks.splice(fi, 1);
+        tasks.splice(ti, 0, moved);
         save(); render();
       }
     }
-    reorderTaskId = null;
+    dragId = null;
   });
 
   selectedDate = todayStr();
