@@ -184,8 +184,8 @@
 
     .drag-handle {
       display: flex; align-items: center; justify-content: center;
-      width: 18px; flex-shrink: 0; color: #aaa; font-size: 16px;
-      cursor: grab; touch-action: none;
+      width: 20px; flex-shrink: 0; color: #999; font-size: 18px;
+      cursor: grab; touch-action: none; letter-spacing: -2px;
     }
     .task-card.dragging { opacity: 0.6; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 10; }
     .drag-target { border-top: 2px solid #888 !important; }
@@ -219,7 +219,7 @@
     @media (hover: hover) { .task-card:hover .desktop-actions { display: flex; } }
     @media (hover: none) { .desktop-actions { display: none !important; } }
 
-    .subtask-area { display: none; padding: 6px 0 6px 64px; background: var(--surface); }
+    .subtask-area { display: none; padding: 6px 0 6px 80px; background: var(--surface); }
     .subtask-area.open { display: block; }
     .subtask-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 0; }
     .sub-check {
@@ -325,7 +325,7 @@
       .modal { width: 94%; max-width: none; padding: 20px; }
       .modal input, .modal select { font-size: 16px; }
       .add-subtask input { font-size: 16px; }
-      .subtask-area { padding-left: 60px; }
+      .subtask-area { padding-left: 76px; }
     }
   </style>
 </head>
@@ -749,10 +749,12 @@
     const cat = getCat(task.category);
     return `
       <div class="swipe-wrapper">
-        <div class="swipe-actions swipe-right"><button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')"><span class="swipe-icon">&#9998;</span>編集</button></div>
-        <div class="swipe-actions swipe-left"><button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')"><span class="swipe-icon">&#10005;</span>削除</button></div>
+        <div class="swipe-actions swipe-left">
+          <button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')"><span class="swipe-icon">&#9998;</span>編集</button>
+          <button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')"><span class="swipe-icon">&#10005;</span>削除</button>
+        </div>
         <div class="task-card ${task.completed ? 'completed' : ''}" style="border-left-color:${cat.color}" data-id="${task.id}">
-          <div class="drag-handle" data-drag="${task.id}">&#8942;</div>
+          <div class="drag-handle" data-drag="${task.id}">&#8942;&#8942;</div>
           <div class="checkbox" onclick="event.stopPropagation(); toggleComplete('${task.id}')"></div>
           <div class="task-info" onclick="if(!this.closest('.task-card').classList.contains('swiped'))toggleSubtasks('${task.id}')">
             <div class="task-name-row">
@@ -848,7 +850,7 @@
         const d = cx - sx;
         if (Math.abs(d) > 8) { moved = true; card.closest('.swipe-wrapper').classList.add('swiping'); }
         if (!moved) return;
-        const clamped = Math.max(-72, Math.min(72, d));
+        const clamped = Math.max(-144, Math.min(0, d));
         card.style.transform = `translateX(${clamped}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
@@ -857,9 +859,7 @@
         if (!moved) { card.style.transform = ''; wrap.classList.remove('swiping'); return; }
         const d = cx - sx;
         if (d < -50) {
-          card.style.transform = 'translateX(-72px)';
-        } else if (d > 50) {
-          card.style.transform = 'translateX(72px)';
+          card.style.transform = 'translateX(-144px)';
         } else {
           card.style.transform = ''; wrap.classList.remove('swiping');
         }
