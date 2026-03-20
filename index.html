@@ -184,8 +184,9 @@
 
     .drag-handle {
       display: flex; align-items: center; justify-content: center;
-      width: 20px; flex-shrink: 0; color: #999; font-size: 18px;
+      width: 16px; flex-shrink: 0; color: #999; font-size: 16px;
       cursor: grab; touch-action: none; letter-spacing: -2px;
+      margin-left: -6px;
     }
     .task-card.dragging { opacity: 0.6; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 10; }
     .drag-target { border-top: 2px solid #888 !important; }
@@ -219,7 +220,10 @@
     @media (hover: hover) { .task-card:hover .desktop-actions { display: flex; } }
     @media (hover: none) { .desktop-actions { display: none !important; } }
 
-    .subtask-area { display: none; padding: 6px 0 6px 80px; background: var(--surface); }
+    .subtask-area {
+      display: none; padding: 6px 0 6px 80px; background: var(--surface);
+      border-radius: 0 0 var(--radius) var(--radius); margin-top: -8px; padding-top: 12px;
+    }
     .subtask-area.open { display: block; }
     .subtask-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 0; }
     .sub-check {
@@ -343,7 +347,7 @@
       </div>
       <div class="week-nav">
         <button onclick="moveWeek(-1)">&#9664;</button>
-        <button onclick="moveWeek(0)">今</button>
+        <button onclick="moveWeek(0)">今日</button>
         <button onclick="moveWeek(1)">&#9654;</button>
       </div>
     </div>
@@ -777,7 +781,6 @@
             </div>`).join('')}
           <div class="add-subtask">
             <input type="text" placeholder="サブタスク追加..." onkeydown="addSubKey(event,'${task.id}')" data-subinput="${task.id}">
-            <button onclick="addSub('${task.id}')">+</button>
           </div>
         </div>
       </div>`;
