@@ -171,12 +171,12 @@
     .task-card {
       position: relative; z-index: 1;
       display: flex; align-items: center; gap: 10px;
-      background: var(--surface); padding: 12px 14px;
+      background: var(--surface); padding: 10px 14px;
       border-radius: var(--radius); box-shadow: var(--shadow);
-      border-left: 4px solid transparent;
+      border-left: 3px solid transparent;
       transition: transform 0.2s ease; touch-action: pan-y;
     }
-    .task-card.swiped { transform: translateX(-168px); }
+    .task-card.swiped { transform: translateX(-112px); }
     .task-card.completed { opacity: 0.45; }
     .task-card.completed .task-name { text-decoration: line-through; }
 
@@ -229,7 +229,7 @@
     .add-subtask input:focus { border-color: var(--primary); }
     .add-subtask button {
       padding: 6px 12px; border: none; border-radius: 6px;
-      background: var(--primary); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
+      background: #ccc; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
     }
 
     /* Modals */
@@ -656,8 +656,13 @@
     renderDayNav(); renderWeek(); render();
   };
   window.moveWeek = function(dir) {
-    if (dir === 0) { weekOffset = 0; dayOffset = 0; selectedDate = todayStr(); }
-    else weekOffset += dir;
+    if (dir === 0) {
+      weekOffset = 0; dayOffset = 0; selectedDate = todayStr();
+    } else {
+      dayOffset += dir * 7;
+      selectedDate = getSelectedDateFromOffset();
+      weekOffset += dir;
+    }
     renderDayNav(); renderWeek(); render();
   };
   // Week calendar: click to select day, swipe to change week
@@ -731,20 +736,15 @@
     return `
       <div class="swipe-wrapper">
         <div class="swipe-actions">
-          <button class="swipe-btn move-btn" onclick="openMoveDate('${task.id}')"><span class="swipe-icon">&#8644;</span>移動</button>
           <button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')"><span class="swipe-icon">&#9998;</span>編集</button>
           <button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')"><span class="swipe-icon">&#10005;</span>削除</button>
         </div>
         <div class="task-card ${task.completed ? 'completed' : ''}" style="border-left-color:${cat.color}" data-id="${task.id}">
           <div class="checkbox" onclick="event.stopPropagation(); toggleComplete('${task.id}')"></div>
-          <div class="task-info" onclick="toggleSubtasks('${task.id}')">
+          <div class="task-info" onclick="if(!this.closest('.task-card').classList.contains('swiped'))toggleSubtasks('${task.id}')">
             <div class="task-name-row">
               <span class="task-name">${escapeHtml(task.name)}</span>
               ${dateLabel ? `<span class="task-date${od ? ' overdue' : ''}">${dateLabel}</span>` : ''}
-            </div>
-            <div class="task-meta-row">
-              <span class="cat-tag" style="background:${cat.color}">${cat.name}</span>
-              ${subInfo}
             </div>
           </div>
           <div class="desktop-actions">
@@ -774,29 +774,7 @@
       $('taskList').innerHTML = '<div class="empty-state"><div class="icon">&#10024;</div><p>タスクがありません</p></div>';
       return;
     }
-    // Group by category
-    const groups = {};
-    filtered.forEach(t => {
-      const cid = t.category || 'none';
-      if (!groups[cid]) groups[cid] = [];
-      groups[cid].push(t);
-    });
-    // Sort groups by category order
-    const catOrder = categories.map(c => c.id);
-    const sortedKeys = Object.keys(groups).sort((a, b) => {
-      const ai = catOrder.indexOf(a), bi = catOrder.indexOf(b);
-      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-    });
-
-    let html = '';
-    for (const cid of sortedKeys) {
-      const cat = getCat(cid);
-      html += `<div class="cat-group">
-        <div class="cat-group-title"><span class="cat-dot" style="background:${cat.color}"></span>${cat.name}</div>
-        <div class="cat-tasks">${groups[cid].map(renderTask).join('')}</div>
-      </div>`;
-    }
-    $('taskList').innerHTML = html;
+    $('taskList').innerHTML = '<div class="task-list">' + filtered.map(renderTask).join('') + '</div>';
     initSwipe();
   }
 
@@ -831,19 +809,19 @@
       }, { passive: true });
       card.addEventListener('touchmove', e => {
         if (!sw) return; cx = e.touches[0].clientX;
-        let d = cx - sx; if (card.classList.contains('swiped')) d -= 168;
-        d = Math.max(-168, Math.min(0, d));
+        let d = cx - sx; if (card.classList.contains('swiped')) d -= 112;
+        d = Math.max(-112, Math.min(0, d));
         card.style.transform = `translateX(${d}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
         if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
         const d = cx - sx;
         if (d < -40 && !card.classList.contains('swiped')) {
-          card.classList.add('swiped'); card.style.transform = 'translateX(-168px)';
+          card.classList.add('swiped'); card.style.transform = 'translateX(-112px)';
         } else if (d > 40 && card.classList.contains('swiped')) {
           card.classList.remove('swiped'); card.style.transform = '';
         } else {
-          card.style.transform = card.classList.contains('swiped') ? 'translateX(-168px)' : '';
+          card.style.transform = card.classList.contains('swiped') ? 'translateX(-112px)' : '';
         }
       });
     });
