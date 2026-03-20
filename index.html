@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タスク管理</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f7f7f5; --surface: #fff; --text: #2d2d2d; --text-sub: #999;
+      --border: #ebebeb; --primary: #666; --primary-hover: #555;
+      --accent: #f0887d; --accent-bg: #fff5f4;
+      --sat: #6ba3d6; --sun: #e07070; --holiday: #e07070;
+      --radius: 14px; --shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      -webkit-user-select: none; user-select: none;
+    }
+    .container { max-width: 800px; margin: 0 auto; padding: 16px 16px; }
+    header { margin-bottom: 12px; }
+    .date-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    header .date { font-size: 16px; font-weight: 700; color: var(--text); }
+    .settings-btn {
+      width: 28px; height: 28px; border: none; border-radius: 6px;
+      background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; color: var(--text-sub);
+      opacity: 0.5;
+    }
+    .settings-btn:active { opacity: 1; }
+
+    .someday-btn {
+      padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+      background: #fff; color: var(--text-sub); font-size: 14px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+    }
+    .someday-btn.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--primary); color: #fff; }
+
+    /* Weekly Calendar */
+    .week-cal {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden;
+    }
+    .week-header {
+      display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 0;
+    }
+    .week-header .month-label { font-size: 15px; font-weight: 700; }
+    .week-nav { display: flex; gap: 8px; }
+    .week-nav button {
+      width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; color: var(--text-sub);
+    }
+    .week-days { display: grid; grid-template-columns: repeat(7, 1fr); padding: 12px 8px 14px; gap: 4px; }
+    .week-day {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 6px 0; border-radius: 10px; cursor: pointer;
+    }
+    .week-day:active { background: var(--bg); }
+    .week-day.drop-target { background: rgba(59,130,246,0.15); transform: scale(1.1); }
+    .task-card.drag-active { opacity: 0.6; transform: scale(0.95); }
+    .week-day .dow { font-size: 11px; color: var(--text-sub); font-weight: 500; }
+    .week-day .day-num {
+      font-size: 18px; font-weight: 700; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; margin-top: 2px;
+    }
+    .week-day.today .day-num { background: var(--primary); color: #fff; }
+    .week-day.selected .day-num { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .week-day .dot-row { display: flex; gap: 2px; margin-top: 3px; height: 5px; }
+    .week-day .task-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .week-day.sunday .dow, .week-day.sunday .day-num { color: var(--sun); }
+    .week-day.saturday .dow, .week-day.saturday .day-num { color: var(--sat); }
+    .week-day.today .day-num {
+      background: var(--text); color: #fff;
+    }
+    .week-day.today .dow { font-weight: 700; }
+
+    /* Day navigator */
+    .day-nav {
+      overflow: hidden; margin-bottom: 14px; touch-action: pan-y;
+    }
+    .day-nav-inner {
+      display: flex; transition: transform 0.25s ease;
+    }
+    .day-card {
+      min-width: 100%; display: flex; flex-direction: column; align-items: center;
+      padding: 10px 16px;
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .day-card .day-num-big {
+      font-size: 32px; font-weight: 800; color: var(--text); line-height: 1;
+    }
+    .day-card .day-num-big .dow-small {
+      font-size: 15px; font-weight: 700;
+    }
+    .day-card.today .day-num-big { color: var(--primary); }
+    .day-card.holiday .day-num-big { color: var(--holiday); }
+    .day-card .day-sub {
+      font-size: 12px; color: var(--text-sub); margin-top: 3px;
+    }
+    .day-card .day-holiday {
+      font-size: 11px; color: var(--holiday); font-weight: 600; margin-top: 2px;
+    }
+
+    .filter-pills { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .pill {
+      padding: 5px 14px; border: 1px solid var(--border); border-radius: 16px;
+      background: var(--surface); font-size: 12px; font-weight: 500;
+      color: var(--text-sub); cursor: pointer;
+    }
+    .pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .stats-inline { font-size: 12px; color: var(--text-sub); margin-bottom: 10px; }
+    .stats-inline span { margin-right: 12px; }
+    .stats-inline .overdue-count { color: var(--accent); font-weight: 600; }
+
+    /* Category group */
+    .cat-group { margin-bottom: 12px; }
+    .cat-group-title {
+      font-size: 13px; font-weight: 700; color: var(--text-sub); padding: 4px 0 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .cat-tasks { display: flex; flex-direction: column; gap: 4px; }
+
+    /* Task */
+    .swipe-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
+    .swipe-actions {
+      position: absolute; right: 0; top: 0; height: 100%;
+      display: flex; align-items: stretch;
+    }
+    .swipe-btn {
+      width: 65px; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 600; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .swipe-btn.edit-btn { background: var(--primary); }
+    .swipe-btn.del-btn { background: var(--accent); }
+
+    .task-card {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); padding: 12px 14px;
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      border-left: 4px solid transparent;
+      transition: transform 0.2s ease; touch-action: pan-y;
+    }
+    .task-card.swiped { transform: translateX(-130px); }
+    .task-card.completed { opacity: 0.45; }
+    .task-card.completed .task-name { text-decoration: line-through; }
+
+    .task-card .checkbox {
+      width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px;
+      cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .task-card.completed .checkbox { background: var(--primary); border-color: var(--primary); }
+    .task-card.completed .checkbox::after { content: "\2713"; color: #fff; font-size: 14px; font-weight: 700; }
+
+    .task-info { flex: 1; min-width: 0; cursor: pointer; }
+    .task-name-row { display: flex; align-items: center; gap: 8px; }
+    .task-name { font-size: 16px; font-weight: 600; word-break: break-word; flex: 1; }
+    .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
+    .task-date.overdue { color: var(--accent); font-weight: 600; }
+    .subtask-count { font-size: 11px; color: var(--text-sub); }
+
+    .desktop-actions { display: none; gap: 4px; flex-shrink: 0; }
+    .icon-btn {
+      width: 30px; height: 30px; border: none; border-radius: 6px;
+      background: transparent; cursor: pointer; font-size: 15px;
+      display: flex; align-items: center; justify-content: center; color: var(--text-sub);
+    }
+    @media (hover: hover) { .task-card:hover .desktop-actions { display: flex; } }
+    @media (hover: none) { .desktop-actions { display: none !important; } }
+
+    .subtask-area { display: none; padding: 6px 0 6px 48px; background: var(--surface); }
+    .subtask-area.open { display: block; }
+    .subtask-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 0; }
+    .sub-check {
+      width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 4px;
+      cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .sub-check.done { background: var(--primary); border-color: var(--primary); }
+    .sub-check.done::after { content: "\2713"; color: #fff; font-size: 11px; font-weight: 700; }
+    .sub-name { font-size: 14px; flex: 1; }
+    .sub-name.done { text-decoration: line-through; opacity: 0.5; }
+    .sub-del { background: none; border: none; color: var(--text-sub); cursor: pointer; font-size: 13px; opacity: 0.4; }
+    .add-subtask { display: flex; gap: 6px; padding: 5px 14px 6px 0; }
+    .add-subtask input {
+      flex: 1; padding: 6px 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 14px; outline: none; background: var(--bg);
+    }
+    .add-subtask input:focus { border-color: var(--primary); }
+    .add-subtask button {
+      padding: 6px 12px; border: none; border-radius: 6px;
+      background: var(--primary); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.35); z-index: 100;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 24px; width: 90%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .modal label { display: block; font-size: 13px; font-weight: 600; color: var(--text-sub); margin: 12px 0 6px; }
+    .modal label:first-of-type { margin-top: 0; }
+    .modal input, .modal select {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 14px; background: #fff; outline: none;
+    }
+    .modal input:focus, .modal select:focus { border-color: var(--primary); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+    .btn-cancel { background: var(--bg); color: var(--text); }
+
+    /* Category settings */
+    .cat-list { margin: 12px 0; }
+    .cat-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cat-item:last-child { border-bottom: none; }
+    .cat-color-wrap {
+      position: relative; width: 32px; height: 32px; flex-shrink: 0;
+    }
+    .cat-color-wrap .cat-color-dot {
+      width: 32px; height: 32px; border-radius: 50%;
+      pointer-events: none;
+    }
+    .cat-color-wrap input[type="color"] {
+      position: absolute; top: 0; left: 0; width: 32px; height: 32px;
+      opacity: 0; cursor: pointer;
+    }
+    .cat-item-name { flex: 1; font-size: 16px; font-weight: 600; white-space: nowrap; }
+    .cat-item-del {
+      background: none; border: none; cursor: pointer;
+      font-size: 20px; padding: 4px 8px; color: var(--text-sub); opacity: 0.4;
+      flex-shrink: 0;
+    }
+    .cat-item-del:active { opacity: 1; color: var(--high); }
+    .add-cat-row { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
+    .add-cat-row input[type="text"] { flex: 1; padding: 10px 12px; }
+    .add-cat-row .color-pick-wrap {
+      position: relative; width: 42px; height: 42px; flex-shrink: 0;
+    }
+    .add-cat-row .color-preview {
+      width: 42px; height: 42px; border-radius: 10px; pointer-events: none;
+    }
+    .add-cat-row input[type="color"] {
+      position: absolute; top: 0; left: 0; width: 42px; height: 42px;
+      opacity: 0; cursor: pointer;
+    }
+
+    /* FAB */
+    .fab {
+      position: fixed; bottom: 28px; right: 24px; z-index: 50;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #555; color: #fff; border: none;
+      font-size: 32px; font-weight: 300; line-height: 1;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .fab:active { transform: scale(0.92); }
+
+    .empty-state { text-align: center; padding: 50px 20px; color: var(--text-sub); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
+    .empty-state p { font-size: 14px; }
+
+    @media (max-width: 600px) {
+      .container { padding: 16px 10px; }
+      .task-name { font-size: 17px; }
+      .task-card .checkbox { width: 26px; height: 26px; }
+      .modal { width: 94%; max-width: none; padding: 20px; }
+      .modal input, .modal select { font-size: 16px; }
+      .add-subtask input { font-size: 16px; }
+      .subtask-area { padding-left: 44px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="date-row">
+      <div class="date" id="currentDate"></div>
+      <button class="settings-btn" onclick="openCatSettings()" title="カテゴリ設定">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="week-cal">
+    <div class="week-header">
+      <span class="month-label" id="monthLabel"></span>
+      <div class="week-nav">
+        <button onclick="moveWeek(-1)">&#9664;</button>
+        <button onclick="moveWeek(0)">今</button>
+        <button onclick="moveWeek(1)">&#9654;</button>
+      </div>
+    </div>
+    <div class="week-days" id="weekDays"></div>
+  </div>
+
+  <!-- Day swipe navigator -->
+  <div class="day-nav" id="dayNav">
+    <div class="day-nav-inner" id="dayNavInner"></div>
+  </div>
+
+  <div class="filter-pills" id="filterPills">
+    <span class="pill active" data-filter="all">すべて</span>
+    <span class="pill" data-filter="pending">未完了</span>
+    <span class="pill" data-filter="done">完了済み</span>
+    <span class="pill" data-filter="someday">いつか</span>
+  </div>
+
+  <div class="stats-inline" id="statsInline"></div>
+  <div id="taskList"></div>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()">+</button>
+
+<!-- Add Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h2>タスクを追加</h2>
+    <form id="addForm">
+      <label>タスク名</label>
+      <input type="text" id="taskInput" placeholder="タスクを入力..." required>
+      <label>期限日</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="date" id="dateInput" style="flex:1">
+        <button type="button" class="someday-btn" id="somedayBtn" onclick="toggleSomeday()">いつか</button>
+      </div>
+      <label>カテゴリ</label>
+      <select id="catInput"></select>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-cancel" onclick="closeAddModal()">キャンセル</button>
+        <button type="submit" class="btn btn-primary">追加</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h2>タスクを編集</h2>
+    <label>タスク名</label>
+    <input type="text" id="editName">
+    <label>期限日</label>
+    <input type="date" id="editDate">
+    <label>カテゴリ</label>
+    <select id="editCat"></select>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="editCancel">キャンセル</button>
+      <button class="btn btn-primary" id="editSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Settings Modal -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal">
+    <h2>カテゴリ管理</h2>
+    <div class="cat-list" id="catList"></div>
+    <div class="add-cat-row">
+      <input type="text" id="newCatName" placeholder="カテゴリ名...">
+      <div class="color-pick-wrap">
+        <div class="color-preview" id="newCatPreview" style="background:#3b82f6"></div>
+        <input type="color" id="newCatColor" value="#3b82f6" onchange="$('newCatPreview').style.background=this.value">
+      </div>
+      <button class="btn btn-primary" onclick="addCategory()">追加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TASK_KEY = 'task-manager-data';
+  const CAT_KEY = 'task-manager-cats';
+  const DEFAULT_CATS = [
+    { id: 'work', name: '仕事', color: '#7c6df0' },
+    { id: 'personal', name: 'プライベート', color: '#5ec2b0' },
+    { id: 'shopping', name: '買い物', color: '#f0b775' },
+    { id: 'health', name: '健康', color: '#f0887d' },
+  ];
+
+  let tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]');
+  let categories = JSON.parse(localStorage.getItem(CAT_KEY) || 'null') || DEFAULT_CATS;
+  let currentFilter = 'all', selectedDate = null, weekOffset = 0, editingId = null;
+  const openSubtasks = new Set();
+
+  const $ = id => document.getElementById(id);
+  const addForm = $('addForm'), taskInput = $('taskInput'),
+        dateInput = $('dateInput'), catInput = $('catInput'),
+        editModal = $('editModal'), catModal = $('catModal'),
+        editName = $('editName'), editDate = $('editDate'), editCat = $('editCat');
+
+  const DOW = ['日','月','火','水','木','金','土'];
+
+  // Japanese holidays
+  const HOLIDAYS = {
+    '2025-01-01':'元日','2025-01-13':'成人の日','2025-02-11':'建国記念の日','2025-02-23':'天皇誕生日',
+    '2025-02-24':'振替休日','2025-03-20':'春分の日','2025-04-29':'昭和の日','2025-05-03':'憲法記念日',
+    '2025-05-04':'みどりの日','2025-05-05':'こどもの日','2025-05-06':'振替休日',
+    '2025-07-21':'海の日','2025-08-11':'山の日','2025-09-15':'敬老の日','2025-09-23':'秋分の日',
+    '2025-10-13':'スポーツの日','2025-11-03':'文化の日','2025-11-23':'勤労感謝の日','2025-11-24':'振替休日',
+    '2026-01-01':'元日','2026-01-12':'成人の日','2026-02-11':'建国記念の日','2026-02-23':'天皇誕生日',
+    '2026-03-20':'春分の日','2026-04-29':'昭和の日','2026-05-03':'憲法記念日',
+    '2026-05-04':'みどりの日','2026-05-05':'こどもの日','2026-05-06':'振替休日',
+    '2026-07-20':'海の日','2026-08-11':'山の日','2026-09-21':'敬老の日','2026-09-22':'国民の休日',
+    '2026-09-23':'秋分の日','2026-10-12':'スポーツの日','2026-11-03':'文化の日',
+    '2026-11-23':'勤労感謝の日','2026-12-23':'天皇誕生日',
+    '2027-01-01':'元日','2027-01-11':'成人の日','2027-02-11':'建国記念の日','2027-02-23':'天皇誕生日',
+    '2027-03-21':'春分の日','2027-04-29':'昭和の日','2027-05-03':'憲法記念日',
+    '2027-05-04':'みどりの日','2027-05-05':'こどもの日','2027-07-19':'海の日',
+    '2027-08-11':'山の日','2027-09-20':'敬老の日','2027-09-23':'秋分の日',
+    '2027-10-11':'スポーツの日','2027-11-03':'文化の日','2027-11-23':'勤労感謝の日',
+  };
+  function getHoliday(ds) { return HOLIDAYS[ds] || null; }
+
+  function save() { localStorage.setItem(TASK_KEY, JSON.stringify(tasks)); }
+  function saveCats() { localStorage.setItem(CAT_KEY, JSON.stringify(categories)); }
+  function toStr(d) {
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function todayStr() { return toStr(new Date()); }
+  function isOverdue(date, done) { return date && date < todayStr() && !done; }
+  function getCat(id) { return categories.find(c => c.id === id) || { name: '未分類', color: '#9ca3af' }; }
+  function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function showDate() {
+    const d = new Date();
+    $('currentDate').textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 (${DOW[d.getDay()]})`;
+  }
+  showDate();
+  dateInput.value = todayStr();
+
+  const addModal = $('addModal');
+  window.openAddModal = function() {
+    if (somedayMode) toggleSomeday();
+    dateInput.value = selectedDate || todayStr();
+    dateInput.style.opacity = '1';
+    addModal.classList.add('show');
+    setTimeout(() => taskInput.focus(), 100);
+  };
+  window.closeAddModal = function() { addModal.classList.remove('show'); };
+  addModal.addEventListener('click', e => { if (e.target === addModal) closeAddModal(); });
+
+  let somedayMode = false;
+  window.toggleSomeday = function() {
+    somedayMode = !somedayMode;
+    $('somedayBtn').classList.toggle('active', somedayMode);
+    dateInput.disabled = somedayMode;
+    if (somedayMode) { dateInput.value = ''; dateInput.style.opacity = '0.4'; }
+    else { dateInput.value = todayStr(); dateInput.style.opacity = '1'; }
+  };
+
+  function populateCatSelects() {
+    const opts = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    catInput.innerHTML = opts;
+    editCat.innerHTML = opts;
+  }
+  populateCatSelects();
+
+  // Weekly calendar
+  function getSunday(off) {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay() + off * 7); d.setHours(0,0,0,0); return d;
+  }
+  function renderWeek() {
+    const sun = getSunday(weekOffset), days = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(sun); d.setDate(d.getDate() + i); days.push(d); }
+    const m1 = days[0].getMonth()+1, m2 = days[6].getMonth()+1, y = days[0].getFullYear();
+    $('monthLabel').textContent = m1 === m2 ? `${y}年${m1}月` : `${y}年${m1}月-${m2}月`;
+    const t = todayStr();
+    $('weekDays').innerHTML = days.map(d => {
+      const ds = toStr(d), dow = d.getDay(), isT = ds === t, isSel = selectedDate === ds;
+      const dayTasks = tasks.filter(tk => tk.date === ds && !tk.completed);
+      const cats = [...new Set(dayTasks.map(tk => tk.category))];
+      const dots = cats.slice(0, 3).map(cid => {
+        const c = getCat(cid);
+        return `<span class="task-dot" style="background:${c.color}"></span>`;
+      }).join('');
+      const hol = getHoliday(ds);
+      let cls = 'week-day';
+      if (isT) cls += ' today'; if (isSel) cls += ' selected';
+      if (dow === 0 || hol) cls += ' sunday'; if (dow === 6) cls += ' saturday';
+      return `<div class="${cls}" data-date="${ds}" onclick="selectDay('${ds}')">
+        <span class="dow">${DOW[dow]}</span><span class="day-num">${d.getDate()}</span>
+        <div class="dot-row">${dots}</div></div>`;
+    }).join('');
+  }
+
+  // Day offset from today
+  let dayOffset = 0;
+
+  function getSelectedDateFromOffset() {
+    const d = new Date();
+    d.setDate(d.getDate() + dayOffset);
+    return toStr(d);
+  }
+
+  function renderDayNav() {
+    const inner = $('dayNavInner');
+    // Render 3 days: prev, current, next
+    const days = [-1, 0, 1].map(off => {
+      const d = new Date();
+      d.setDate(d.getDate() + dayOffset + off);
+      return { date: d, str: toStr(d) };
+    });
+    inner.innerHTML = days.map(({ date, str }) => {
+      const isT = str === todayStr();
+      const hol = getHoliday(str);
+      const taskCount = tasks.filter(t => t.date === str && !t.completed).length;
+      let cls = 'day-card';
+      if (isT) cls += ' today';
+      if (hol) cls += ' holiday';
+      const relLabel = formatDayLabel(str);
+      return `<div class="${cls}">
+        <div class="day-num-big">${date.getDate()}<span class="dow-small">(${DOW[date.getDay()]})</span></div>
+        <div class="day-sub">${relLabel ? relLabel + ' ・ ' : ''}${taskCount > 0 ? taskCount + '件のタスク' : 'タスクなし'}</div>
+        ${hol ? `<div class="day-holiday">${hol}</div>` : ''}
+      </div>`;
+    }).join('');
+    inner.style.transition = 'none';
+    inner.style.transform = 'translateX(-100%)';
+    selectedDate = getSelectedDateFromOffset();
+    // Update week view to match
+    const sd = new Date();
+    sd.setDate(sd.getDate() + dayOffset);
+    weekOffset = Math.floor((sd.getTime() - getSunday(0).getTime()) / (7*86400000));
+  }
+
+  function formatDayLabel(ds) {
+    const t = todayStr();
+    const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
+    const yest = new Date(); yest.setDate(yest.getDate()-1);
+    if (ds === t) return '今日';
+    if (ds === toStr(tmr)) return '明日';
+    if (ds === toStr(yest)) return '昨日';
+    return '';
+  }
+
+  // Day swipe
+  (function() {
+    const nav = $('dayNav');
+    let sx = 0, moving = false;
+    nav.addEventListener('touchstart', e => { sx = e.touches[0].clientX; moving = true; }, { passive: true });
+    nav.addEventListener('touchmove', e => {
+      if (!moving) return;
+      const diff = e.touches[0].clientX - sx;
+      const inner = $('dayNavInner');
+      inner.style.transition = 'none';
+      inner.style.transform = `translateX(calc(-100% + ${diff}px))`;
+    }, { passive: true });
+    nav.addEventListener('touchend', e => {
+      if (!moving) return; moving = false;
+      const diff = e.changedTouches[0].clientX - sx;
+      const inner = $('dayNavInner');
+      if (diff < -50) { // swipe left = next day
+        inner.style.transition = 'transform 0.2s ease';
+        inner.style.transform = 'translateX(-200%)';
+        setTimeout(() => { dayOffset++; renderDayNav(); renderWeek(); render(); }, 200);
+      } else if (diff > 50) { // swipe right = prev day
+        inner.style.transition = 'transform 0.2s ease';
+        inner.style.transform = 'translateX(0%)';
+        setTimeout(() => { dayOffset--; renderDayNav(); renderWeek(); render(); }, 200);
+      } else {
+        inner.style.transition = 'transform 0.2s ease';
+        inner.style.transform = 'translateX(-100%)';
+      }
+    });
+  })();
+
+  window.selectDay = function(ds) {
+    // Calculate dayOffset from ds
+    const target = new Date(ds + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    dayOffset = Math.round((target - today) / 86400000);
+    selectedDate = ds;
+    currentFilter = 'all'; updatePills();
+    renderDayNav(); renderWeek(); render();
+  };
+  window.moveWeek = function(dir) {
+    if (dir === 0) { weekOffset = 0; dayOffset = 0; selectedDate = todayStr(); }
+    else weekOffset += dir;
+    renderDayNav(); renderWeek(); render();
+  };
+  // Week calendar: swipe to change week, tap to select day
+  (function() {
+    const el = $('weekDays'); let sx = 0, sy = 0;
+    el.addEventListener('touchstart', e => {
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+    }, { passive: true });
+    el.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal swipe
+        moveWeek(dx < 0 ? 1 : -1);
+      } else if (Math.abs(dx) < 15 && Math.abs(dy) < 15) {
+        // Tap - find which day was tapped
+        const touch = e.changedTouches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        const dayEl = target && target.closest('.week-day');
+        if (dayEl && dayEl.dataset.date) {
+          selectDay(dayEl.dataset.date);
+        }
+      }
+    });
+  })();
+
+  function updatePills() {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    const a = document.querySelector(`.pill[data-filter="${currentFilter}"]`);
+    if (a) a.classList.add('active');
+  }
+  $('filterPills').addEventListener('click', e => {
+    const pill = e.target.closest('.pill'); if (!pill) return;
+    currentFilter = pill.dataset.filter; selectedDate = null;
+    updatePills(); renderWeek(); render();
+  });
+
+  function filterTasks() {
+    return tasks.filter(task => {
+      if (selectedDate) return task.date === selectedDate;
+      switch (currentFilter) {
+        case 'pending': return !task.completed;
+        case 'done': return task.completed;
+        case 'someday': return !task.date;
+        default: return true;
+      }
+    });
+  }
+
+  function formatDate(ds) {
+    if (!ds) return '';
+    const t = todayStr();
+    const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
+    const yest = new Date(); yest.setDate(yest.getDate()-1);
+    if (ds === t) return '今日';
+    if (ds === toStr(tmr)) return '明日';
+    if (ds === toStr(yest)) return '昨日';
+    const d = new Date(ds + 'T00:00:00');
+    return `${d.getMonth()+1}/${d.getDate()}`;
+  }
+
+  function updateStats() {
+    const total = tasks.length, done = tasks.filter(t => t.completed).length;
+    const overdue = tasks.filter(t => isOverdue(t.date, t.completed)).length;
+    let h = `<span>${done}/${total} 完了</span>`;
+    if (overdue > 0) h += `<span class="overdue-count">${overdue}件 期限切れ</span>`;
+    $('statsInline').innerHTML = h;
+  }
+
+  function renderTask(task) {
+    const od = isOverdue(task.date, task.completed);
+    const dateLabel = selectedDate ? '' : formatDate(task.date);
+    const subs = task.subtasks || [];
+    const dc = subs.filter(s => s.done).length;
+    const subInfo = subs.length > 0 ? `<span class="subtask-count">${dc}/${subs.length}</span>` : '';
+    const cat = getCat(task.category);
+    return `
+      <div class="swipe-wrapper">
+        <div class="swipe-actions">
+          <button class="swipe-btn edit-btn" onclick="openEdit('${task.id}')">編集</button>
+          <button class="swipe-btn del-btn" onclick="deleteTask('${task.id}')">削除</button>
+        </div>
+        <div class="task-card ${task.completed ? 'completed' : ''}" style="border-left-color:${cat.color}" data-id="${task.id}">
+          <div class="checkbox" onclick="toggleComplete('${task.id}')"></div>
+          <div class="task-info" onclick="toggleSubtasks('${task.id}')">
+            <div class="task-name-row">
+              <span class="task-name">${escapeHtml(task.name)}</span>
+              ${subInfo}
+              ${dateLabel ? `<span class="task-date${od ? ' overdue' : ''}">${dateLabel}</span>` : ''}
+            </div>
+          </div>
+          <div class="desktop-actions">
+            <button class="icon-btn" onclick="openEdit('${task.id}')">&#9998;</button>
+            <button class="icon-btn delete" onclick="deleteTask('${task.id}')">&#128465;</button>
+          </div>
+        </div>
+        <div class="subtask-area ${openSubtasks.has(task.id) ? 'open' : ''}">
+          ${subs.map((s, i) => `
+            <div class="subtask-item">
+              <div class="sub-check ${s.done ? 'done' : ''}" onclick="toggleSub('${task.id}',${i})"></div>
+              <span class="sub-name ${s.done ? 'done' : ''}">${escapeHtml(s.name)}</span>
+              <button class="sub-del" onclick="delSub('${task.id}',${i})">&#10005;</button>
+            </div>`).join('')}
+          <div class="add-subtask">
+            <input type="text" placeholder="サブタスク追加..." onkeydown="addSubKey(event,'${task.id}')" data-subinput="${task.id}">
+            <button onclick="addSub('${task.id}')">+</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function render() {
+    updateStats(); renderWeek();
+    const filtered = filterTasks();
+    if (filtered.length === 0) {
+      $('taskList').innerHTML = '<div class="empty-state"><div class="icon">&#10024;</div><p>タスクがありません</p></div>';
+      return;
+    }
+    // Group by category
+    const groups = {};
+    filtered.forEach(t => {
+      const cid = t.category || 'none';
+      if (!groups[cid]) groups[cid] = [];
+      groups[cid].push(t);
+    });
+    // Sort groups by category order
+    const catOrder = categories.map(c => c.id);
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      const ai = catOrder.indexOf(a), bi = catOrder.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    let html = '';
+    for (const cid of sortedKeys) {
+      const cat = getCat(cid);
+      html += `<div class="cat-group">
+        <div class="cat-group-title"><span class="cat-dot" style="background:${cat.color}"></span>${cat.name}</div>
+        <div class="cat-tasks">${groups[cid].map(renderTask).join('')}</div>
+      </div>`;
+    }
+    $('taskList').innerHTML = html;
+    initSwipe();
+  }
+
+  // Subtasks
+  window.toggleSubtasks = function(id) { openSubtasks.has(id) ? openSubtasks.delete(id) : openSubtasks.add(id); render(); };
+  window.addSub = function(id) {
+    const inp = document.querySelector(`[data-subinput="${id}"]`);
+    const name = inp.value.trim(); if (!name) return;
+    const t = tasks.find(t => t.id === id); if (!t) return;
+    if (!t.subtasks) t.subtasks = [];
+    t.subtasks.push({ name, done: false }); save(); render();
+  };
+  window.addSubKey = function(e, id) { if (e.key === 'Enter') { e.preventDefault(); addSub(id); } };
+  window.toggleSub = function(id, i) {
+    const t = tasks.find(t => t.id === id);
+    if (t && t.subtasks[i]) { t.subtasks[i].done = !t.subtasks[i].done; save(); render(); }
+  };
+  window.delSub = function(id, i) {
+    const t = tasks.find(t => t.id === id); if (t) { t.subtasks.splice(i, 1); save(); render(); }
+  };
+
+  // Swipe
+  function initSwipe() {
+    document.querySelectorAll('.task-card').forEach(card => {
+      let sx = 0, cx = 0, sw = false;
+      card.addEventListener('touchstart', e => {
+        if (e.target.closest('.checkbox')) return;
+        sx = e.touches[0].clientX; sw = true; card.style.transition = 'none';
+        document.querySelectorAll('.task-card.swiped').forEach(c => {
+          if (c !== card) { c.classList.remove('swiped'); c.style.transform = ''; }
+        });
+      }, { passive: true });
+      card.addEventListener('touchmove', e => {
+        if (!sw) return; cx = e.touches[0].clientX;
+        let d = cx - sx; if (card.classList.contains('swiped')) d -= 130;
+        d = Math.max(-130, Math.min(0, d));
+        card.style.transform = `translateX(${d}px)`;
+      }, { passive: true });
+      card.addEventListener('touchend', () => {
+        if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
+        const d = cx - sx;
+        if (d < -40 && !card.classList.contains('swiped')) {
+          card.classList.add('swiped'); card.style.transform = 'translateX(-130px)';
+        } else if (d > 40 && card.classList.contains('swiped')) {
+          card.classList.remove('swiped'); card.style.transform = '';
+        } else {
+          card.style.transform = card.classList.contains('swiped') ? 'translateX(-130px)' : '';
+        }
+      });
+    });
+  }
+
+  // CRUD
+  addForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = taskInput.value.trim(); if (!name) return;
+    tasks.unshift({
+      id: uid(), name, date: dateInput.value, category: catInput.value,
+      completed: false, subtasks: [], createdAt: new Date().toISOString()
+    });
+    save(); render();
+    taskInput.value = '';
+    if (somedayMode) toggleSomeday();
+    closeAddModal();
+  });
+  window.toggleComplete = function(id) {
+    const t = tasks.find(t => t.id === id);
+    if (t) { t.completed = !t.completed; save(); render(); }
+  };
+  window.deleteTask = function(id) { tasks = tasks.filter(t => t.id !== id); save(); render(); };
+  window.openEdit = function(id) {
+    const t = tasks.find(t => t.id === id); if (!t) return;
+    editingId = id; editName.value = t.name;
+    editDate.value = t.date || ''; editCat.value = t.category || '';
+    editModal.classList.add('show');
+  };
+  function closeEdit() { editModal.classList.remove('show'); editingId = null; }
+  $('editCancel').addEventListener('click', closeEdit);
+  editModal.addEventListener('click', e => { if (e.target === editModal) closeEdit(); });
+  $('editSave').addEventListener('click', () => {
+    const t = tasks.find(t => t.id === editingId); if (!t) return;
+    const name = editName.value.trim(); if (!name) return;
+    t.name = name; t.date = editDate.value; t.category = editCat.value;
+    save(); render(); closeEdit();
+  });
+
+  // Category management
+  window.openCatSettings = function() {
+    renderCatList();
+    catModal.classList.add('show');
+  };
+  catModal.addEventListener('click', e => { if (e.target === catModal) catModal.classList.remove('show'); });
+
+  function renderCatList() {
+    $('catList').innerHTML = categories.map((c, i) => `
+      <div class="cat-item">
+        <div class="cat-color-wrap">
+          <div class="cat-color-dot" style="background:${c.color}" id="catDot${i}"></div>
+          <input type="color" value="${c.color}" onchange="updateCatColor(${i}, this.value); $('catDot${i}').style.background=this.value">
+        </div>
+        <span class="cat-item-name">${escapeHtml(c.name)}</span>
+        <button class="cat-item-del" onclick="deleteCategory(${i})">&#10005;</button>
+      </div>`).join('');
+  }
+
+  window.addCategory = function() {
+    const name = $('newCatName').value.trim(); if (!name) return;
+    const color = $('newCatColor').value;
+    categories.push({ id: uid(), name, color });
+    saveCats(); populateCatSelects(); renderCatList();
+    $('newCatName').value = '';
+  };
+  window.updateCatColor = function(i, color) {
+    categories[i].color = color; saveCats(); render();
+  };
+  window.deleteCategory = function(i) {
+    const cid = categories[i].id;
+    categories.splice(i, 1); saveCats(); populateCatSelects(); renderCatList(); render();
+  };
+
+  // Drag task to calendar day to change date
+  let dragTaskId = null, longPressTimer = null, dragStartY = 0;
+
+  document.addEventListener('touchstart', e => {
+    const card = e.target.closest('.task-card');
+    if (!card || e.target.closest('.checkbox') || e.target.closest('.icon-btn')) return;
+    dragStartY = e.touches[0].clientY;
+    longPressTimer = setTimeout(() => {
+      dragTaskId = card.dataset.id;
+      card.classList.add('drag-active');
+      try { navigator.vibrate(30); } catch(e) {}
+    }, 500);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!dragTaskId) {
+      // Cancel long press if finger moves too much
+      if (longPressTimer && Math.abs(e.touches[0].clientY - dragStartY) > 10) {
+        clearTimeout(longPressTimer);
+      }
+      return;
+    }
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    document.querySelectorAll('.week-day.drop-target').forEach(d => d.classList.remove('drop-target'));
+    const dayEl = el && el.closest('.week-day');
+    if (dayEl) dayEl.classList.add('drop-target');
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    clearTimeout(longPressTimer);
+    if (!dragTaskId) return;
+    document.querySelectorAll('.drag-active').forEach(c => c.classList.remove('drag-active'));
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const dayEl = el && el.closest('.week-day');
+    document.querySelectorAll('.drop-target').forEach(d => d.classList.remove('drop-target'));
+    if (dayEl) {
+      const newDate = dayEl.getAttribute('data-date');
+      if (newDate) {
+        const task = tasks.find(t => t.id === dragTaskId);
+        if (task) { task.date = newDate; save(); selectDay(newDate); }
+      }
+    }
+    dragTaskId = null;
+  });
+
+  selectedDate = todayStr();
+  renderDayNav();
+  render();
+</script>
+</body>
+</html>
