@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>タスク管理</title>
+  <title>Tasks</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#555555">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="タスク">
+  <meta name="apple-mobile-web-app-title" content="Tasks">
   <link rel="apple-touch-icon" href="icon-192.png">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -154,7 +154,9 @@
     .swipe-actions {
       position: absolute; top: 0; bottom: 0;
       display: flex; align-items: stretch;
+      visibility: hidden;
     }
+    .swipe-wrapper.swiping .swipe-actions { visibility: visible; }
     .swipe-actions.swipe-left { right: 0; }
     .swipe-actions.swipe-right { left: 0; }
     .task-card ~ .subtask-area { position: relative; z-index: 2; }
@@ -182,7 +184,7 @@
 
     .drag-handle {
       display: flex; align-items: center; justify-content: center;
-      width: 18px; flex-shrink: 0; color: #ccc; font-size: 12px;
+      width: 18px; flex-shrink: 0; color: #aaa; font-size: 16px;
       cursor: grab; touch-action: none;
     }
     .task-card.dragging { opacity: 0.6; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 10; }
@@ -217,7 +219,7 @@
     @media (hover: hover) { .task-card:hover .desktop-actions { display: flex; } }
     @media (hover: none) { .desktop-actions { display: none !important; } }
 
-    .subtask-area { display: none; padding: 6px 0 6px 48px; background: var(--surface); }
+    .subtask-area { display: none; padding: 6px 0 6px 64px; background: var(--surface); }
     .subtask-area.open { display: block; }
     .subtask-item { display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 0; }
     .sub-check {
@@ -323,7 +325,7 @@
       .modal { width: 94%; max-width: none; padding: 20px; }
       .modal input, .modal select { font-size: 16px; }
       .add-subtask input { font-size: 16px; }
-      .subtask-area { padding-left: 44px; }
+      .subtask-area { padding-left: 60px; }
     }
   </style>
 </head>
@@ -838,28 +840,28 @@
         card.style.transition = 'none';
         // Close other cards
         document.querySelectorAll('.task-card').forEach(c => {
-          if (c !== card) { c.style.transform = ''; c.dataset.swipeDir = ''; }
+          if (c !== card) { c.style.transform = ''; c.closest('.swipe-wrapper').classList.remove('swiping'); }
         });
       }, { passive: true });
       card.addEventListener('touchmove', e => {
         if (!sw) return; cx = e.touches[0].clientX;
         const d = cx - sx;
-        if (Math.abs(d) > 8) moved = true;
+        if (Math.abs(d) > 8) { moved = true; card.closest('.swipe-wrapper').classList.add('swiping'); }
         if (!moved) return;
-        // Left swipe: delete (max -72), Right swipe: edit (max +72)
         const clamped = Math.max(-72, Math.min(72, d));
         card.style.transform = `translateX(${clamped}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
         if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
-        if (!moved) { card.style.transform = ''; return; }
+        const wrap = card.closest('.swipe-wrapper');
+        if (!moved) { card.style.transform = ''; wrap.classList.remove('swiping'); return; }
         const d = cx - sx;
         if (d < -50) {
-          card.style.transform = 'translateX(-72px)'; card.dataset.swipeDir = 'left';
+          card.style.transform = 'translateX(-72px)';
         } else if (d > 50) {
-          card.style.transform = 'translateX(72px)'; card.dataset.swipeDir = 'right';
+          card.style.transform = 'translateX(72px)';
         } else {
-          card.style.transform = ''; card.dataset.swipeDir = '';
+          card.style.transform = ''; wrap.classList.remove('swiping');
         }
       });
     });
