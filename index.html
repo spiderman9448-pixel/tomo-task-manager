@@ -395,14 +395,17 @@
   const TASK_KEY = 'task-manager-data';
   const CAT_KEY = 'task-manager-cats';
   const DEFAULT_CATS = [
-    { id: 'work', name: '仕事', color: '#7c6df0' },
-    { id: 'personal', name: 'プライベート', color: '#5ec2b0' },
-    { id: 'shopping', name: '買い物', color: '#f0b775' },
-    { id: 'health', name: '健康', color: '#f0887d' },
+    { id: 'morning', name: '朝', color: '#f0b775' },
+    { id: 'daytime', name: '昼', color: '#5ec2b0' },
+    { id: 'evening', name: '夜', color: '#7c8cc8' },
+    { id: 'night', name: '寝る前', color: '#a78bba' },
+    { id: 'work', name: '仕事', color: '#888' },
+    { id: 'personal', name: 'プライベート', color: '#e0956e' },
   ];
 
   let tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]');
-  let categories = JSON.parse(localStorage.getItem(CAT_KEY) || 'null') || DEFAULT_CATS;
+  let categories = JSON.parse(localStorage.getItem(CAT_KEY) || 'null');
+  if (!categories || categories.length < 5) { categories = DEFAULT_CATS; saveCats(); }
   let currentFilter = 'all', selectedDate = null, weekOffset = 0, editingId = null;
   const openSubtasks = new Set();
 
