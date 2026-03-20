@@ -122,7 +122,7 @@
       width: 100%; padding: 10px 14px; border: 1px solid var(--border);
       border-radius: var(--radius); font-size: 14px; font-family: inherit;
       background: var(--surface); color: var(--text); outline: none;
-      resize: none; min-height: 40px;
+      resize: none; min-height: 40px; overflow: hidden;
     }
     .memo-area textarea:focus { border-color: var(--primary); }
     .memo-area textarea::placeholder { color: #bbb; }
@@ -513,6 +513,12 @@
   function loadMemo() {
     const ds = selectedDate || todayStr();
     $('memoInput').value = memos[ds] || '';
+    setTimeout(autoResizeMemo, 0);
+  }
+  function autoResizeMemo() {
+    const el = $('memoInput');
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
   }
   window.saveMemo = function() {
     const ds = selectedDate || todayStr();
@@ -520,6 +526,7 @@
     if (val.trim()) memos[ds] = val;
     else delete memos[ds];
     localStorage.setItem(MEMO_KEY, JSON.stringify(memos));
+    autoResizeMemo();
   };
 
   const addModal = $('addModal');
