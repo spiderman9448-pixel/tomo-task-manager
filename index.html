@@ -190,6 +190,7 @@
 
     .task-info { flex: 1; min-width: 0; cursor: pointer; }
     .task-name-row { display: flex; align-items: center; gap: 8px; }
+    .task-meta-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
     .task-name { font-size: 16px; font-weight: 600; word-break: break-word; flex: 1; }
     .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
     .task-date.overdue { color: var(--accent); font-weight: 600; }
@@ -739,9 +740,11 @@
           <div class="task-info" onclick="toggleSubtasks('${task.id}')">
             <div class="task-name-row">
               <span class="task-name">${escapeHtml(task.name)}</span>
-              ${subInfo}
-              <span class="cat-tag" style="background:${cat.color}">${cat.name}</span>
               ${dateLabel ? `<span class="task-date${od ? ' overdue' : ''}">${dateLabel}</span>` : ''}
+            </div>
+            <div class="task-meta-row">
+              <span class="cat-tag" style="background:${cat.color}">${cat.name}</span>
+              ${subInfo}
             </div>
           </div>
           <div class="desktop-actions">
