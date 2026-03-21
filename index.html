@@ -38,6 +38,35 @@
     }
     .settings-btn:active { opacity: 1; }
 
+    /* Auth */
+    .auth-bar {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 10px 16px; margin-bottom: 12px;
+    }
+    .login-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600;
+      cursor: pointer; box-shadow: var(--shadow);
+    }
+    .login-btn:active { transform: scale(0.97); }
+    .login-btn img { width: 18px; height: 18px; }
+    .user-info {
+      display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sub);
+    }
+    .user-info img {
+      width: 28px; height: 28px; border-radius: 50%;
+    }
+    .logout-btn {
+      padding: 4px 12px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 12px; color: var(--text-sub); cursor: pointer;
+    }
+    .sync-indicator {
+      font-size: 11px; color: var(--text-sub); text-align: center; padding: 2px 0;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .sync-indicator.show { opacity: 1; }
+
     .someday-btn {
       padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
       background: #fff; color: var(--text-sub); font-size: 14px; font-weight: 600;
@@ -340,6 +369,19 @@
 <body>
 
 <div class="container">
+
+  <div class="auth-bar" id="authBar">
+    <button class="login-btn" id="loginBtn" onclick="signIn()" style="display:none">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+      Googleでログイン
+    </button>
+    <div class="user-info" id="userInfo" style="display:none">
+      <img id="userPhoto" src="" alt="">
+      <span id="userName"></span>
+      <button class="logout-btn" onclick="signOut()">ログアウト</button>
+    </div>
+  </div>
+  <div class="sync-indicator" id="syncStatus"></div>
 
   <div class="week-cal">
     <div class="week-header">
@@ -1073,6 +1115,172 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+</script>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDwFAY1-ISfdVWSVptRfCoAAi5q92ISOSw",
+    authDomain: "tomo-tasks.firebaseapp.com",
+    databaseURL: "https://tomo-tasks-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "tomo-tasks",
+    storageBucket: "tomo-tasks.firebasestorage.app",
+    messagingSenderId: "19435255015",
+    appId: "1:19435255015:web:747e0734f831186e905e42"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+  let currentUser = null;
+  let dbListeners = [];
+
+  function showSync(msg) {
+    const el = document.getElementById('syncStatus');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+  }
+
+  // Auth UI
+  window.signIn = function() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(err => {
+      // Popup blocked on mobile, try redirect
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        auth.signInWithRedirect(provider);
+      } else {
+        alert('ログインエラー: ' + err.message);
+      }
+    });
+  };
+  window.signOut = function() {
+    auth.signOut();
+  };
+
+  auth.onAuthStateChanged(user => {
+    currentUser = user;
+    const loginBtn = document.getElementById('loginBtn');
+    const userInfo = document.getElementById('userInfo');
+    if (user) {
+      loginBtn.style.display = 'none';
+      userInfo.style.display = 'flex';
+      document.getElementById('userPhoto').src = user.photoURL || '';
+      document.getElementById('userName').textContent = user.displayName || user.email;
+      showSync('同期中...');
+      attachDBListeners(user.uid);
+    } else {
+      loginBtn.style.display = 'flex';
+      userInfo.style.display = 'none';
+      detachDBListeners();
+      // Load from localStorage
+      tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]');
+      categories = JSON.parse(localStorage.getItem(CAT_KEY) || 'null');
+      if (!categories || categories.length < 5) { categories = DEFAULT_CATS; }
+      memos = JSON.parse(localStorage.getItem(MEMO_KEY) || '{}');
+      populateCatSelects();
+      render();
+    }
+  });
+
+  function attachDBListeners(uid) {
+    detachDBListeners();
+    const userRef = db.ref('users/' + uid);
+
+    // Tasks
+    const tasksRef = userRef.child('tasks');
+    const tasksListener = tasksRef.on('value', snap => {
+      const data = snap.val();
+      tasks = data ? Object.values(data) : [];
+      localStorage.setItem(TASK_KEY, JSON.stringify(tasks));
+      render();
+      showSync('✓ 同期完了');
+    });
+    dbListeners.push({ ref: tasksRef, event: 'value', cb: tasksListener });
+
+    // Categories
+    const catsRef = userRef.child('categories');
+    const catsListener = catsRef.on('value', snap => {
+      const data = snap.val();
+      if (data) {
+        categories = Object.values(data);
+      } else {
+        categories = DEFAULT_CATS;
+        syncCatsToFirebase(uid);
+      }
+      localStorage.setItem(CAT_KEY, JSON.stringify(categories));
+      populateCatSelects();
+      render();
+    });
+    dbListeners.push({ ref: catsRef, event: 'value', cb: catsListener });
+
+    // Memos
+    const memosRef = userRef.child('memos');
+    const memosListener = memosRef.on('value', snap => {
+      const data = snap.val();
+      memos = data || {};
+      localStorage.setItem(MEMO_KEY, JSON.stringify(memos));
+      loadMemo();
+    });
+    dbListeners.push({ ref: memosRef, event: 'value', cb: memosListener });
+
+    // Upload local data if cloud is empty
+    tasksRef.once('value', snap => {
+      if (!snap.val() && tasks.length > 0) {
+        syncTasksToFirebase(uid);
+        showSync('ローカルデータをアップロード中...');
+      }
+    });
+  }
+
+  function detachDBListeners() {
+    dbListeners.forEach(({ ref, event, cb }) => ref.off(event, cb));
+    dbListeners = [];
+  }
+
+  function syncTasksToFirebase(uid) {
+    if (!uid) return;
+    const data = {};
+    tasks.forEach(t => { data[t.id] = t; });
+    db.ref('users/' + uid + '/tasks').set(data);
+  }
+
+  function syncCatsToFirebase(uid) {
+    if (!uid) return;
+    const data = {};
+    categories.forEach(c => { data[c.id] = c; });
+    db.ref('users/' + uid + '/categories').set(data);
+  }
+
+  function syncMemosToFirebase(uid) {
+    if (!uid) return;
+    db.ref('users/' + uid + '/memos').set(memos);
+  }
+
+  // Override save functions to sync to Firebase
+  const _origSave = save;
+  save = function() {
+    localStorage.setItem(TASK_KEY, JSON.stringify(tasks));
+    if (currentUser) syncTasksToFirebase(currentUser.uid);
+  };
+
+  const _origSaveCats = saveCats;
+  saveCats = function() {
+    localStorage.setItem(CAT_KEY, JSON.stringify(categories));
+    if (currentUser) syncCatsToFirebase(currentUser.uid);
+  };
+
+  const _origSaveMemo = window.saveMemo;
+  window.saveMemo = function() {
+    const ds = selectedDate || todayStr();
+    const val = document.getElementById('memoInput').value;
+    if (val.trim()) memos[ds] = val;
+    else delete memos[ds];
+    localStorage.setItem(MEMO_KEY, JSON.stringify(memos));
+    if (currentUser) syncMemosToFirebase(currentUser.uid);
+    autoResizeMemo();
+  };
 </script>
 </body>
 </html>
