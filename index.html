@@ -479,6 +479,10 @@
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style="width:14px;height:14px;vertical-align:middle;margin-right:4px">ログイン
       </button>
     </div>
+    <div class="auth-section" id="calSection" style="display:none">
+      <span style="font-size:13px">📅 カレンダー</span>
+      <button class="auth-action-btn" id="calConnectBtn" onclick="connectCalendar()">接続</button>
+    </div>
     <h2>カテゴリ管理</h2>
     <div class="cat-list" id="catList"></div>
     <div class="add-cat-row">
@@ -1242,13 +1246,59 @@
     auth.signOut();
   };
 
+  window.connectCalendar = function() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    provider.setCustomParameters({ prompt: 'consent' });
+    auth.currentUser.linkWithPopup(provider).then(result => {
+      if (result.credential && result.credential.accessToken) {
+        calAccessToken = result.credential.accessToken;
+        updateCalUI();
+        showSync('📅 カレンダー接続OK');
+        if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
+      }
+    }).catch(err => {
+      // Already linked, try reauthenticate
+      if (err.code === 'auth/provider-already-linked' || err.code === 'auth/credential-already-in-use') {
+        const provider2 = new firebase.auth.GoogleAuthProvider();
+        provider2.addScope('https://www.googleapis.com/auth/calendar.readonly');
+        provider2.setCustomParameters({ prompt: 'consent' });
+        auth.signInWithPopup(provider2).then(result => {
+          if (result.credential && result.credential.accessToken) {
+            calAccessToken = result.credential.accessToken;
+            updateCalUI();
+            showSync('📅 カレンダー接続OK');
+            if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
+          }
+        }).catch(() => showSync('⚠ カレンダー接続失敗'));
+      } else {
+        showSync('⚠ カレンダー接続失敗');
+      }
+    });
+  };
+
+  function updateCalUI() {
+    const section = document.getElementById('calSection');
+    const btn = document.getElementById('calConnectBtn');
+    if (!section) return;
+    if (currentUser) {
+      section.style.display = '';
+      btn.textContent = calAccessToken ? '✓ 接続済み' : '接続';
+      btn.style.opacity = calAccessToken ? '0.5' : '1';
+    } else {
+      section.style.display = 'none';
+    }
+  }
+
   // Handle redirect result (mobile)
   auth.getRedirectResult().then(result => {
-    if (result && result.credential) {
+    console.log('Redirect result:', result ? !!result.credential : 'no result');
+    if (result && result.credential && result.credential.accessToken) {
       calAccessToken = result.credential.accessToken;
+      showSync('📅 カレンダー接続OK');
       if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
     }
-  }).catch(() => {});
+  }).catch(err => { console.error('Redirect error:', err); });
 
   auth.onAuthStateChanged(user => {
     currentUser = user;
@@ -1263,6 +1313,7 @@
       authActionBtn.onclick = signOut;
       showSync('同期中...');
       attachDBListeners(user.uid);
+      updateCalUI();
       // Fetch calendar events for current date if we have a token
       if (calAccessToken && selectedDate) {
         fetchCalendarEvents(selectedDate).then(() => render());
@@ -1279,6 +1330,7 @@
       if (!categories || categories.length < 5) { categories = DEFAULT_CATS; }
       memos = JSON.parse(localStorage.getItem(MEMO_KEY) || '{}');
       populateCatSelects();
+      updateCalUI();
       render();
     }
   });
