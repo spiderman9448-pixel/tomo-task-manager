@@ -1209,6 +1209,7 @@
   window.signIn = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    provider.setCustomParameters({ prompt: 'consent' });
     auth.signInWithPopup(provider).then(result => {
       const credential = firebase.auth.GoogleAuthProvider.credentialFromResult(result);
       if (credential && credential.accessToken) {
