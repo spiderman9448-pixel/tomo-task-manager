@@ -571,6 +571,30 @@
   </div>
 </div>
 
+<!-- List Name Input Modal -->
+<div class="modal-overlay" id="listNameModal">
+  <div class="modal">
+    <h2 id="listNameTitle">リスト名</h2>
+    <input type="text" id="listNameInput" placeholder="リスト名を入力...">
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeListNameModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="confirmListName()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- List Delete Confirm Modal -->
+<div class="modal-overlay" id="listDeleteModal">
+  <div class="modal">
+    <h2>リストを削除</h2>
+    <p style="font-size:14px;color:var(--text-sub);margin-bottom:8px">このリストとすべてのアイテムが削除されます。</p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeListDelete()">キャンセル</button>
+      <button class="btn" style="background:var(--sun);color:#fff" onclick="confirmListDelete()">削除</button>
+    </div>
+  </div>
+</div>
+
 <!-- List Schedule Modal -->
 <div class="modal-overlay" id="listScheduleModal">
   <div class="modal">
@@ -1387,34 +1411,62 @@
 
   window.switchList = function(id) { activeListId = id; renderListView(); };
 
+  let listNameCallback = null;
+  let deletingListId = null;
+
   window.addNewList = function() {
-    const name = prompt('リスト名を入力:');
-    if (!name || !name.trim()) return;
-    const newList = { id: uid(), name: name.trim(), items: [] };
-    wishLists.push(newList);
-    activeListId = newList.id;
-    saveLists();
-    if (currentUser) syncListsToFirebase(currentUser.uid);
-    renderListView();
+    $('listNameTitle').textContent = '新しいリスト';
+    $('listNameInput').value = '';
+    listNameCallback = 'add';
+    $('listNameModal').classList.add('show');
+    setTimeout(() => $('listNameInput').focus(), 100);
   };
 
   window.renameList = function(id) {
     const list = wishLists.find(l => l.id === id);
     if (!list) return;
-    const name = prompt('新しいリスト名:', list.name);
-    if (!name || !name.trim()) return;
-    list.name = name.trim();
+    $('listNameTitle').textContent = 'リスト名を変更';
+    $('listNameInput').value = list.name;
+    listNameCallback = 'rename:' + id;
+    $('listNameModal').classList.add('show');
+    setTimeout(() => $('listNameInput').focus(), 100);
+  };
+
+  window.closeListNameModal = function() { $('listNameModal').classList.remove('show'); };
+  $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
+  $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmListName(); } });
+
+  window.confirmListName = function() {
+    const name = $('listNameInput').value.trim();
+    if (!name) return;
+    if (listNameCallback === 'add') {
+      const newList = { id: uid(), name, items: [] };
+      wishLists.push(newList);
+      activeListId = newList.id;
+    } else if (listNameCallback && listNameCallback.startsWith('rename:')) {
+      const id = listNameCallback.split(':')[1];
+      const list = wishLists.find(l => l.id === id);
+      if (list) list.name = name;
+    }
     saveLists();
     if (currentUser) syncListsToFirebase(currentUser.uid);
+    closeListNameModal();
     renderListView();
   };
 
   window.deleteList = function(id) {
-    if (!confirm('このリストを削除しますか？')) return;
-    wishLists = wishLists.filter(l => l.id !== id);
-    if (activeListId === id) activeListId = wishLists[0] ? wishLists[0].id : null;
+    deletingListId = id;
+    $('listDeleteModal').classList.add('show');
+  };
+  window.closeListDelete = function() { $('listDeleteModal').classList.remove('show'); deletingListId = null; };
+  $('listDeleteModal').addEventListener('click', e => { if (e.target === $('listDeleteModal')) closeListDelete(); });
+
+  window.confirmListDelete = function() {
+    wishLists = wishLists.filter(l => l.id !== deletingListId);
+    if (activeListId === deletingListId) activeListId = wishLists[0] ? wishLists[0].id : null;
     saveLists();
     if (currentUser) syncListsToFirebase(currentUser.uid);
+    closeListDelete();
     renderListView();
   };
 
@@ -1552,16 +1604,21 @@
 
   // Check for OAuth callback token in URL hash on page load
   (function checkOAuthCallback() {
-    if (window.location.hash.includes('access_token')) {
-      const params = new URLSearchParams(window.location.hash.substring(1));
+    const hash = window.location.hash;
+    if (hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
       const token = params.get('access_token');
       if (token) {
         calAccessToken = token;
         localStorage.setItem(CAL_TOKEN_KEY, token);
-        // Clean up URL
         history.replaceState(null, '', window.location.pathname);
         showSync('📅 カレンダー接続OK');
       }
+    } else if (hash.includes('error=')) {
+      // Silent re-auth failed, clear token
+      calAccessToken = null;
+      localStorage.removeItem(CAL_TOKEN_KEY);
+      history.replaceState(null, '', window.location.pathname);
     }
   })();
 
