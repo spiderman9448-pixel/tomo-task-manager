@@ -510,15 +510,17 @@
   }
 
   async function fetchCalendarEvents(dateStr) {
-    if (!calAccessToken) { calEvents = []; return; }
+    if (!calAccessToken) { calEvents = []; console.log('Cal: no token'); return; }
     try {
       const timeMin = dateStr + 'T00:00:00+09:00';
       const timeMax = dateStr + 'T23:59:59+09:00';
       const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
       const res = await fetch(url, { headers: { Authorization: 'Bearer ' + calAccessToken } });
-      if (res.status === 401) { calAccessToken = null; calEvents = []; return; }
-      if (!res.ok) { calEvents = []; return; }
+      console.log('Cal API response:', res.status);
+      if (res.status === 401) { calAccessToken = null; calEvents = []; showSync('⚠ カレンダー認証切れ'); return; }
+      if (!res.ok) { calEvents = []; console.log('Cal API error:', await res.text()); return; }
       const data = await res.json();
+      console.log('Cal events count:', (data.items || []).length);
       calEvents = (data.items || []).filter(e => e.status !== 'cancelled').map(e => ({
         id: e.id,
         name: e.summary || '(無題)',
@@ -1211,11 +1213,20 @@
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     provider.setCustomParameters({ prompt: 'consent' });
     auth.signInWithPopup(provider).then(result => {
+      console.log('Auth result:', JSON.stringify({
+        hasCredential: !!result.credential,
+        credentialType: result.credential ? result.credential.providerId : 'none',
+        hasAccessToken: result.credential ? !!result.credential.accessToken : false
+      }));
       if (result.credential && result.credential.accessToken) {
         calAccessToken = result.credential.accessToken;
+        showSync('📅 カレンダー接続OK');
         if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
+      } else {
+        showSync('⚠ カレンダートークン取得失敗');
       }
     }).catch(err => {
+      console.error('Auth error:', err.code, err.message);
       // Popup blocked on mobile, try redirect
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
         auth.signInWithRedirect(provider);
