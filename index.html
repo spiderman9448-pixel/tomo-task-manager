@@ -235,6 +235,7 @@
     .task-name-row { display: flex; align-items: center; gap: 8px; }
     .task-meta-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
     .task-name { font-size: 16px; font-weight: 600; word-break: break-word; flex: 1; }
+    .task-name a, .sub-name a { color: #5590c8; text-decoration: underline; word-break: break-all; }
     .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
     .task-date.overdue { color: var(--accent); font-weight: 600; }
     .subtask-count { font-size: 11px; color: var(--text-sub); }
@@ -548,6 +549,7 @@
   function isOverdue(date, done) { return date && date < todayStr() && !done; }
   function getCat(id) { return categories.find(c => c.id === id) || { name: '未分類', color: '#9ca3af' }; }
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function linkify(s) { return escapeHtml(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" onclick="event.stopPropagation()">$1</a>'); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
   dateInput.value = todayStr();
@@ -810,7 +812,7 @@
           <div class="checkbox" onclick="event.stopPropagation(); toggleComplete('${task.id}')"></div>
           <div class="task-info" onclick="if(!this.closest('.task-card').classList.contains('swiped'))toggleSubtasks('${task.id}')">
             <div class="task-name-row">
-              <span class="task-name">${escapeHtml(task.name)}</span>
+              <span class="task-name">${linkify(task.name)}</span>
               ${subInfo}
               ${dateLabel ? `<span class="task-date${od ? ' overdue' : ''}">${dateLabel}</span>` : ''}
             </div>
@@ -824,7 +826,7 @@
           ${subs.map((s, i) => `
             <div class="subtask-item">
               <div class="sub-check ${s.done ? 'done' : ''}" onclick="toggleSub('${task.id}',${i})"></div>
-              <span class="sub-name ${s.done ? 'done' : ''}">${escapeHtml(s.name)}</span>
+              <span class="sub-name ${s.done ? 'done' : ''}">${linkify(s.name)}</span>
               <button class="sub-del" onclick="delSub('${task.id}',${i})">&#10005;</button>
             </div>`).join('')}
           <div class="add-subtask">
