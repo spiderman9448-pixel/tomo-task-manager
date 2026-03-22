@@ -495,6 +495,60 @@
 <script>
   const TASK_KEY = 'task-manager-data';
   const CAT_KEY = 'task-manager-cats';
+  const CAL_CHECK_KEY = 'task-manager-cal-checks';
+
+  // Google Calendar integration
+  let calAccessToken = null;
+  let calEvents = [];
+  let calChecks = JSON.parse(localStorage.getItem(CAL_CHECK_KEY) || '{}');
+
+  function saveCalChecks() {
+    localStorage.setItem(CAL_CHECK_KEY, JSON.stringify(calChecks));
+    if (currentUser) {
+      db.ref('users/' + currentUser.uid + '/calChecks').set(calChecks);
+    }
+  }
+
+  async function fetchCalendarEvents(dateStr) {
+    if (!calAccessToken) { calEvents = []; return; }
+    try {
+      const timeMin = dateStr + 'T00:00:00+09:00';
+      const timeMax = dateStr + 'T23:59:59+09:00';
+      const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + calAccessToken } });
+      if (res.status === 401) { calAccessToken = null; calEvents = []; return; }
+      if (!res.ok) { calEvents = []; return; }
+      const data = await res.json();
+      calEvents = (data.items || []).filter(e => e.status !== 'cancelled').map(e => ({
+        id: e.id,
+        name: e.summary || '(無題)',
+        startTime: e.start.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '終日',
+        endTime: e.end.dateTime ? new Date(e.end.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '',
+        allDay: !e.start.dateTime
+      }));
+    } catch (e) { calEvents = []; }
+  }
+
+  function toggleCalCheck(eventId) {
+    calChecks[eventId] = !calChecks[eventId];
+    saveCalChecks();
+    render();
+  }
+
+  function renderCalEvent(ev) {
+    const checked = calChecks[ev.id];
+    const timeLabel = ev.allDay ? '終日' : `${ev.startTime}〜${ev.endTime}`;
+    return `
+      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4">
+        <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
+        <div class="task-info">
+          <div class="task-name-row">
+            <span class="task-name">${escapeHtml(ev.name)}</span>
+            <span class="task-date" style="color:#4285f4">${timeLabel}</span>
+          </div>
+        </div>
+      </div>`;
+  }
   const DEFAULT_CATS = [
     { id: 'personal', name: 'プライベート', color: '#e0956e' },
     { id: 'work', name: '仕事', color: '#888' },
@@ -698,11 +752,11 @@
       if (diff < -50) { // swipe left = next day
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(-200%)';
-        setTimeout(() => { dayOffset++; renderDayNav(); renderWeek(); render(); }, 200);
+        setTimeout(() => { dayOffset++; renderDayNav(); renderWeek(); const d = new Date(); d.setDate(d.getDate()+dayOffset); selectedDate = toStr(d); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
       } else if (diff > 50) { // swipe right = prev day
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(0%)';
-        setTimeout(() => { dayOffset--; renderDayNav(); renderWeek(); render(); }, 200);
+        setTimeout(() => { dayOffset--; renderDayNav(); renderWeek(); const d = new Date(); d.setDate(d.getDate()+dayOffset); selectedDate = toStr(d); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
       } else {
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(-100%)';
@@ -717,7 +771,8 @@
     dayOffset = Math.round((target - today) / 86400000);
     selectedDate = ds;
     currentFilter = 'all'; updatePills();
-    renderDayNav(); renderWeek(); render();
+    renderDayNav(); renderWeek();
+    fetchCalendarEvents(ds).then(() => render());
   };
   window.moveWeek = function(dir) {
     if (dir === 0) {
@@ -835,9 +890,18 @@
   function render() {
     updateStats(); renderWeek(); loadMemo();
     const filtered = filterTasks();
-    if (filtered.length === 0) {
+    const hasCalEvents = selectedDate && calEvents.length > 0;
+    if (filtered.length === 0 && !hasCalEvents) {
       $('taskList').innerHTML = '<div class="empty-state" onclick="openAddModal()"><div class="icon">&#10024;</div><p>タスクがありません</p><p class="hint">タップしてタスクを追加</p></div>';
       return;
+    }
+    let html = '';
+    // Calendar events group
+    if (hasCalEvents) {
+      html += `<div class="cat-group">
+        <div class="cat-group-title"><span class="cat-dot" style="background:#4285f4"></span>📅 カレンダー</div>
+        <div class="task-list">${calEvents.map(renderCalEvent).join('')}</div>
+      </div>`;
     }
     // Group by category
     const groups = {};
@@ -851,7 +915,6 @@
       const ai = catOrder.indexOf(a), bi = catOrder.indexOf(b);
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-    let html = '';
     for (const cid of sortedKeys) {
       const cat = getCat(cid);
       html += `<div class="cat-group">
@@ -1145,7 +1208,14 @@
   // Auth UI
   window.signIn = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(err => {
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    auth.signInWithPopup(provider).then(result => {
+      const credential = firebase.auth.GoogleAuthProvider.credentialFromResult(result);
+      if (credential && credential.accessToken) {
+        calAccessToken = credential.accessToken;
+        if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
+      }
+    }).catch(err => {
       // Popup blocked on mobile, try redirect
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
         auth.signInWithRedirect(provider);
@@ -1157,8 +1227,17 @@
     });
   };
   window.signOut = function() {
+    calAccessToken = null; calEvents = [];
     auth.signOut();
   };
+
+  // Handle redirect result (mobile)
+  auth.getRedirectResult().then(result => {
+    if (result && result.credential) {
+      calAccessToken = result.credential.accessToken;
+      if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
+    }
+  }).catch(() => {});
 
   auth.onAuthStateChanged(user => {
     currentUser = user;
@@ -1173,6 +1252,10 @@
       authActionBtn.onclick = signOut;
       showSync('同期中...');
       attachDBListeners(user.uid);
+      // Fetch calendar events for current date if we have a token
+      if (calAccessToken && selectedDate) {
+        fetchCalendarEvents(selectedDate).then(() => render());
+      }
     } else {
       dot.classList.remove('logged-in');
       dot.title = '未ログイン';
@@ -1229,6 +1312,15 @@
       loadMemo();
     });
     dbListeners.push({ ref: memosRef, event: 'value', cb: memosListener });
+
+    // CalChecks
+    const calChecksRef = userRef.child('calChecks');
+    const calChecksListener = calChecksRef.on('value', snap => {
+      const data = snap.val();
+      calChecks = data || {};
+      localStorage.setItem(CAL_CHECK_KEY, JSON.stringify(calChecks));
+    });
+    dbListeners.push({ ref: calChecksRef, event: 'value', cb: calChecksListener });
 
     // Upload local data if cloud is empty
     tasksRef.once('value', snap => {
