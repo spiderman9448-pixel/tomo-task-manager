@@ -1211,9 +1211,8 @@
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
     provider.setCustomParameters({ prompt: 'consent' });
     auth.signInWithPopup(provider).then(result => {
-      const credential = firebase.auth.GoogleAuthProvider.credentialFromResult(result);
-      if (credential && credential.accessToken) {
-        calAccessToken = credential.accessToken;
+      if (result.credential && result.credential.accessToken) {
+        calAccessToken = result.credential.accessToken;
         if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
       }
     }).catch(err => {
