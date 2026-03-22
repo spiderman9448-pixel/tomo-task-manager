@@ -14,7 +14,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #f7f7f5; --surface: #fff; --text: #2d2d2d; --text-sub: #999;
+      --bg: #edecea; --surface: #fff; --text: #2d2d2d; --text-sub: #999;
       --border: #ebebeb; --primary: #666; --primary-hover: #555;
       --accent: #f0887d; --accent-bg: #fff5f4;
       --sat: #5590c8; --sun: #d45555; --holiday: #d45555;
@@ -514,24 +514,44 @@
   }
 
   async function fetchCalendarEvents(dateStr) {
-    if (!calAccessToken) { calEvents = []; console.log('Cal: no token'); return; }
+    if (!calAccessToken) { calEvents = []; return; }
     try {
+      const headers = { Authorization: 'Bearer ' + calAccessToken };
       const timeMin = dateStr + 'T00:00:00+09:00';
       const timeMax = dateStr + 'T23:59:59+09:00';
-      const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + calAccessToken } });
-      console.log('Cal API response:', res.status);
-      if (res.status === 401) { calAccessToken = null; calEvents = []; showSync('⚠ カレンダー認証切れ'); return; }
-      if (!res.ok) { calEvents = []; console.log('Cal API error:', await res.text()); return; }
-      const data = await res.json();
-      console.log('Cal events count:', (data.items || []).length);
-      calEvents = (data.items || []).filter(e => e.status !== 'cancelled').map(e => ({
-        id: e.id,
-        name: e.summary || '(無題)',
-        startTime: e.start.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '終日',
-        endTime: e.end.dateTime ? new Date(e.end.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '',
-        allDay: !e.start.dateTime
+      // Get all calendars
+      const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers });
+      if (listRes.status === 401) { calAccessToken = null; calEvents = []; showSync('⚠ カレンダー認証切れ'); return; }
+      if (!listRes.ok) { calEvents = []; return; }
+      const listData = await listRes.json();
+      const calendars = (listData.items || []).filter(c => c.selected !== false);
+      // Fetch events from all calendars in parallel
+      const allEvents = [];
+      await Promise.all(calendars.map(async cal => {
+        try {
+          const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+          const res = await fetch(url, { headers });
+          if (!res.ok) return;
+          const data = await res.json();
+          (data.items || []).filter(e => e.status !== 'cancelled').forEach(e => {
+            allEvents.push({
+              id: e.id,
+              name: e.summary || '(無題)',
+              startTime: e.start.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '終日',
+              endTime: e.end.dateTime ? new Date(e.end.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '',
+              allDay: !e.start.dateTime,
+              calColor: cal.backgroundColor || '#4285f4'
+            });
+          });
+        } catch(e) {}
       }));
+      // Sort: all-day first, then by start time
+      allEvents.sort((a, b) => {
+        if (a.allDay && !b.allDay) return -1;
+        if (!a.allDay && b.allDay) return 1;
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      });
+      calEvents = allEvents;
     } catch (e) { calEvents = []; }
   }
 
