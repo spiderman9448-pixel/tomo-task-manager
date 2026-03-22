@@ -665,7 +665,7 @@
       const timeMax = dateStr + 'T23:59:59+09:00';
       // Get all calendars
       const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers });
-      if (listRes.status === 401) { calAccessToken = null; localStorage.removeItem(CAL_TOKEN_KEY); calEvents = []; silentCalReauth(); return; }
+      if (listRes.status === 401) { calAccessToken = null; localStorage.removeItem(CAL_TOKEN_KEY); calEvents = []; updateCalUI(); showSync('⚠ カレンダー再接続してください'); return; }
       if (!listRes.ok) { calEvents = []; return; }
       const listData = await listRes.json();
       const calendars = (listData.items || []).filter(c => c.selected !== false);
