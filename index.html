@@ -360,9 +360,9 @@
     /* Wish Lists */
     .lists-btn {
       padding: 6px 16px; border: none; border-radius: 16px;
-      background: #555; font-size: 12px; font-weight: 600;
-      color: #fff; cursor: pointer; margin-left: auto;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      background: linear-gradient(135deg, #f9c4d2, #b5d8f7); font-size: 12px; font-weight: 700;
+      color: #6b5b7b; cursor: pointer; margin-left: auto;
+      box-shadow: 0 2px 8px rgba(185,140,200,0.2);
     }
     .lists-btn:active { opacity: 0.8; transform: scale(0.97); }
     .list-view {
@@ -1434,8 +1434,10 @@
   };
 
   window.closeListNameModal = function() { $('listNameModal').classList.remove('show'); };
-  $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
-  $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmListName(); } });
+  try {
+    $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
+    $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmListName(); } });
+  } catch(e) { console.log('listNameModal init error:', e); }
 
   window.confirmListName = function() {
     const name = $('listNameInput').value.trim();
@@ -1460,7 +1462,9 @@
     $('listDeleteModal').classList.add('show');
   };
   window.closeListDelete = function() { $('listDeleteModal').classList.remove('show'); deletingListId = null; };
-  $('listDeleteModal').addEventListener('click', e => { if (e.target === $('listDeleteModal')) closeListDelete(); });
+  try {
+    $('listDeleteModal').addEventListener('click', e => { if (e.target === $('listDeleteModal')) closeListDelete(); });
+  } catch(e) { console.log('listDeleteModal init error:', e); }
 
   window.confirmListDelete = function() {
     wishLists = wishLists.filter(l => l.id !== deletingListId);
@@ -1520,7 +1524,7 @@
     schedulingItemId = null;
     schedulingListId = null;
   };
-  $('listScheduleModal').addEventListener('click', e => { if (e.target === $('listScheduleModal')) closeListSchedule(); });
+  try { $('listScheduleModal').addEventListener('click', e => { if (e.target === $('listScheduleModal')) closeListSchedule(); }); } catch(e) {}
 
   window.confirmListSchedule = function() {
     const list = wishLists.find(l => l.id === schedulingListId);
@@ -1622,21 +1626,6 @@
       history.replaceState(null, '', window.location.pathname);
     }
   })();
-
-  // Silent re-auth when token expires (uses hidden iframe-like approach)
-  function silentCalReauth() {
-    if (!auth.currentUser) { updateCalUI(); return; }
-    const params = new URLSearchParams({
-      client_id: CAL_CLIENT_ID,
-      redirect_uri: CAL_REDIRECT_URI,
-      response_type: 'token',
-      scope: 'https://www.googleapis.com/auth/calendar.readonly',
-      prompt: 'none',
-      login_hint: auth.currentUser.email
-    });
-    // Redirect for silent re-auth (prompt=none skips consent screen)
-    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
-  }
 
   window.connectCalendar = function() {
     if (!auth.currentUser) { showSync('⚠ 先にログインしてください'); return; }
