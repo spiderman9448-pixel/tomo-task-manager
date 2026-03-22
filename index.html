@@ -1246,31 +1246,34 @@
     auth.signOut();
   };
 
+  function getCalProvider() {
+    const p = new firebase.auth.GoogleAuthProvider();
+    p.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    p.setCustomParameters({ prompt: 'consent' });
+    return p;
+  }
+
+  function handleCalResult(result) {
+    if (result && result.credential && result.credential.accessToken) {
+      calAccessToken = result.credential.accessToken;
+      updateCalUI();
+      showSync('📅 カレンダー接続OK');
+      if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
+      return true;
+    }
+    return false;
+  }
+
   window.connectCalendar = function() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-    provider.setCustomParameters({ prompt: 'consent' });
-    auth.currentUser.linkWithPopup(provider).then(result => {
-      if (result.credential && result.credential.accessToken) {
-        calAccessToken = result.credential.accessToken;
-        updateCalUI();
-        showSync('📅 カレンダー接続OK');
-        if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
-      }
+    const provider = getCalProvider();
+    auth.signInWithPopup(provider).then(result => {
+      handleCalResult(result);
     }).catch(err => {
-      // Already linked, try reauthenticate
-      if (err.code === 'auth/provider-already-linked' || err.code === 'auth/credential-already-in-use') {
-        const provider2 = new firebase.auth.GoogleAuthProvider();
-        provider2.addScope('https://www.googleapis.com/auth/calendar.readonly');
-        provider2.setCustomParameters({ prompt: 'consent' });
-        auth.signInWithPopup(provider2).then(result => {
-          if (result.credential && result.credential.accessToken) {
-            calAccessToken = result.credential.accessToken;
-            updateCalUI();
-            showSync('📅 カレンダー接続OK');
-            if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
-          }
-        }).catch(() => showSync('⚠ カレンダー接続失敗'));
+      console.log('Cal popup error:', err.code);
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        // Mobile: use redirect
+        showSync('リダイレクト中...');
+        auth.signInWithRedirect(getCalProvider());
       } else {
         showSync('⚠ カレンダー接続失敗');
       }
