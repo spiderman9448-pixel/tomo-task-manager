@@ -1265,17 +1265,26 @@
   }
 
   window.connectCalendar = function() {
+    if (!auth.currentUser) { showSync('⚠ 先にログインしてください'); return; }
     const provider = getCalProvider();
-    auth.signInWithPopup(provider).then(result => {
-      handleCalResult(result);
+    // Use reauthenticateWithPopup - more reliable for getting access token
+    auth.currentUser.reauthenticateWithPopup(provider).then(result => {
+      if (!handleCalResult(result)) {
+        showSync('⚠ トークン取得失敗');
+      }
     }).catch(err => {
-      console.log('Cal popup error:', err.code);
+      console.log('Cal reauth error:', err.code, err.message);
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
-        // Mobile: use redirect
+        // Mobile: use reauthenticateWithRedirect
         showSync('リダイレクト中...');
-        auth.signInWithRedirect(getCalProvider());
+        auth.currentUser.reauthenticateWithRedirect(getCalProvider());
+      } else if (err.code === 'auth/user-mismatch') {
+        // Different account selected, try signInWithPopup
+        auth.signInWithPopup(provider).then(result => {
+          handleCalResult(result);
+        }).catch(() => showSync('⚠ カレンダー接続失敗'));
       } else {
-        showSync('⚠ カレンダー接続失敗');
+        showSync('⚠ ' + (err.code || 'カレンダー接続失敗'));
       }
     });
   };
@@ -1298,6 +1307,7 @@
     console.log('Redirect result:', result ? !!result.credential : 'no result');
     if (result && result.credential && result.credential.accessToken) {
       calAccessToken = result.credential.accessToken;
+      updateCalUI();
       showSync('📅 カレンダー接続OK');
       if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
     }
