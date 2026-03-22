@@ -1183,8 +1183,6 @@
   }
 </script>
 
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -1233,35 +1231,33 @@
   };
 
   const CAL_CLIENT_ID = '19435255015-2jn0qi4lepab6k6bmc0mdibodi7rhvo6.apps.googleusercontent.com';
-  let gisTokenClient = null;
+  const CAL_REDIRECT_URI = window.location.origin + window.location.pathname;
 
-  function initGIS() {
-    if (gisTokenClient || typeof google === 'undefined' || !google.accounts) return;
-    gisTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CAL_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/calendar.readonly',
-      callback: (response) => {
-        if (response.access_token) {
-          calAccessToken = response.access_token;
-          updateCalUI();
-          showSync('📅 カレンダー接続OK');
-          if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
-        } else {
-          showSync('⚠ カレンダー接続失敗');
-        }
-      },
-    });
-  }
+  // Check for OAuth callback token in URL hash on page load
+  (function checkOAuthCallback() {
+    if (window.location.hash.includes('access_token')) {
+      const params = new URLSearchParams(window.location.hash.substring(1));
+      const token = params.get('access_token');
+      if (token) {
+        calAccessToken = token;
+        // Clean up URL
+        history.replaceState(null, '', window.location.pathname);
+        showSync('📅 カレンダー接続OK');
+      }
+    }
+  })();
 
   window.connectCalendar = function() {
     if (!auth.currentUser) { showSync('⚠ 先にログインしてください'); return; }
-    initGIS();
-    if (gisTokenClient) {
-      gisTokenClient.requestAccessToken({ hint: auth.currentUser.email });
-    } else {
-      showSync('⚠ Google APIの読み込み待ち...');
-      setTimeout(connectCalendar, 1000);
-    }
+    const params = new URLSearchParams({
+      client_id: CAL_CLIENT_ID,
+      redirect_uri: CAL_REDIRECT_URI,
+      response_type: 'token',
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      prompt: 'consent',
+      login_hint: auth.currentUser.email
+    });
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
   };
 
   function updateCalUI() {
@@ -1294,6 +1290,9 @@
       showSync('同期中...');
       attachDBListeners(user.uid);
       updateCalUI();
+      if (calAccessToken && selectedDate) {
+        fetchCalendarEvents(selectedDate).then(() => render());
+      }
     } else {
       dot.classList.remove('logged-in');
       dot.title = '未ログイン';
