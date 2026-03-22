@@ -620,7 +620,8 @@
   const CAL_CHECK_KEY = 'task-manager-cal-checks';
 
   // Google Calendar integration
-  let calAccessToken = null;
+  const CAL_TOKEN_KEY = 'task-manager-cal-token';
+  let calAccessToken = localStorage.getItem(CAL_TOKEN_KEY) || null;
   let calEvents = [];
   let calChecks = JSON.parse(localStorage.getItem(CAL_CHECK_KEY) || '{}');
 
@@ -639,7 +640,7 @@
       const timeMax = dateStr + 'T23:59:59+09:00';
       // Get all calendars
       const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers });
-      if (listRes.status === 401) { calAccessToken = null; calEvents = []; showSync('⚠ カレンダー認証切れ'); return; }
+      if (listRes.status === 401) { calAccessToken = null; localStorage.removeItem(CAL_TOKEN_KEY); calEvents = []; silentCalReauth(); return; }
       if (!listRes.ok) { calEvents = []; return; }
       const listData = await listRes.json();
       const calendars = (listData.items || []).filter(c => c.selected !== false);
@@ -1542,6 +1543,7 @@
   };
   window.signOut = function() {
     calAccessToken = null; calEvents = [];
+    localStorage.removeItem(CAL_TOKEN_KEY);
     auth.signOut();
   };
 
@@ -1555,12 +1557,28 @@
       const token = params.get('access_token');
       if (token) {
         calAccessToken = token;
+        localStorage.setItem(CAL_TOKEN_KEY, token);
         // Clean up URL
         history.replaceState(null, '', window.location.pathname);
         showSync('📅 カレンダー接続OK');
       }
     }
   })();
+
+  // Silent re-auth when token expires (uses hidden iframe-like approach)
+  function silentCalReauth() {
+    if (!auth.currentUser) { updateCalUI(); return; }
+    const params = new URLSearchParams({
+      client_id: CAL_CLIENT_ID,
+      redirect_uri: CAL_REDIRECT_URI,
+      response_type: 'token',
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      prompt: 'none',
+      login_hint: auth.currentUser.email
+    });
+    // Redirect for silent re-auth (prompt=none skips consent screen)
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  }
 
   window.connectCalendar = function() {
     if (!auth.currentUser) { showSync('⚠ 先にログインしてください'); return; }
