@@ -357,6 +357,95 @@
     .empty-state p { font-size: 14px; }
     .empty-state .hint { font-size: 11px; margin-top: 6px; opacity: 0.6; }
 
+    /* Wish Lists */
+    .lists-btn {
+      padding: 5px 14px; border: 1px solid var(--border); border-radius: 16px;
+      background: var(--surface); font-size: 12px; font-weight: 500;
+      color: var(--text-sub); cursor: pointer; margin-left: auto;
+    }
+    .lists-btn:active { background: var(--bg); }
+    .list-view {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg); z-index: 200; overflow-y: auto;
+    }
+    .list-view.show { display: block; }
+    .list-view-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1;
+    }
+    .list-view-header .back-btn {
+      width: 32px; height: 32px; border: none; background: transparent;
+      font-size: 20px; cursor: pointer; color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .list-view-header h2 { font-size: 18px; font-weight: 700; flex: 1; }
+    .list-view-body { max-width: 800px; margin: 0 auto; padding: 16px; }
+    .list-tabs {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .list-tabs::-webkit-scrollbar { display: none; }
+    .list-tab {
+      padding: 6px 16px; border: 1px solid var(--border); border-radius: 20px;
+      background: var(--surface); font-size: 13px; font-weight: 600;
+      cursor: pointer; white-space: nowrap; color: var(--text-sub);
+    }
+    .list-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .list-tab-add {
+      padding: 6px 12px; border: 1px dashed var(--border); border-radius: 20px;
+      background: transparent; font-size: 13px; cursor: pointer; color: var(--text-sub);
+      white-space: nowrap;
+    }
+    .list-items { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .list-item {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); padding: 12px 14px;
+      border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .list-item.done { opacity: 0.45; }
+    .list-item .checkbox {
+      width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px;
+      cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .list-item.done .checkbox { background: var(--primary); border-color: var(--primary); }
+    .list-item.done .checkbox::after { content: "\2713"; color: #fff; font-size: 14px; font-weight: 700; }
+    .list-item.done .list-item-name { text-decoration: line-through; }
+    .list-item-name { flex: 1; font-size: 16px; font-weight: 600; word-break: break-word; }
+    .list-item-actions { display: flex; gap: 4px; }
+    .list-item-actions button {
+      width: 30px; height: 30px; border: none; border-radius: 6px;
+      background: transparent; cursor: pointer; font-size: 14px;
+      color: var(--text-sub); display: flex; align-items: center; justify-content: center;
+    }
+    .list-item-actions button:active { background: var(--bg); }
+    .list-add-row {
+      display: flex; gap: 8px; margin-top: 12px;
+    }
+    .list-add-row input {
+      flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; background: var(--surface);
+      outline: none;
+    }
+    .list-add-row input:focus { border-color: var(--primary); }
+    .list-add-row button {
+      padding: 10px 16px; border: none; border-radius: var(--radius);
+      background: var(--primary); color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer;
+    }
+    .list-empty { text-align: center; padding: 40px 20px; color: var(--text-sub); }
+    .list-empty .icon { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
+    .list-manage-bar {
+      display: flex; gap: 8px; margin-top: 8px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .list-manage-bar button {
+      padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 12px; cursor: pointer; color: var(--text-sub);
+    }
+    .list-manage-bar button:active { background: var(--bg); }
+
     @media (max-width: 600px) {
       .container { padding: 16px 10px; }
       .task-name { font-size: 17px; }
@@ -365,6 +454,7 @@
       .modal input, .modal select { font-size: 16px; }
       .add-subtask input { font-size: 16px; }
       .subtask-area { padding-left: 76px; }
+      .list-add-row input { font-size: 16px; }
     }
   </style>
 </head>
@@ -407,6 +497,7 @@
     <span class="pill" data-filter="pending">未完了</span>
     <span class="pill" data-filter="done">完了済み</span>
     <span class="pill" data-filter="someday">いつか</span>
+    <button class="lists-btn" onclick="openListView()">📋 リスト</button>
   </div>
 
   <div class="stats-inline" id="statsInline"></div>
@@ -464,6 +555,33 @@
     <div class="modal-actions">
       <button class="btn btn-cancel" id="editCancel">キャンセル</button>
       <button class="btn btn-primary" id="editSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- List View -->
+<div class="list-view" id="listView">
+  <div class="list-view-header">
+    <button class="back-btn" onclick="closeListView()">&#8592;</button>
+    <h2>マイリスト</h2>
+  </div>
+  <div class="list-view-body">
+    <div class="list-tabs" id="listTabs"></div>
+    <div id="listContent"></div>
+  </div>
+</div>
+
+<!-- List Schedule Modal -->
+<div class="modal-overlay" id="listScheduleModal">
+  <div class="modal">
+    <h2>日付を設定してタスクに移動</h2>
+    <label>日付</label>
+    <input type="date" id="listScheduleDate">
+    <label>カテゴリ</label>
+    <select id="listScheduleCat"></select>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeListSchedule()">キャンセル</button>
+      <button class="btn btn-primary" onclick="confirmListSchedule()">移動</button>
     </div>
   </div>
 </div>
@@ -1193,6 +1311,183 @@
     dragId = null;
   });
 
+  // === Wish Lists ===
+  const LIST_KEY = 'task-manager-lists';
+  let wishLists = JSON.parse(localStorage.getItem(LIST_KEY) || 'null');
+  if (!wishLists) {
+    wishLists = [
+      { id: uid(), name: 'やりたいこと', items: [] },
+      { id: uid(), name: '行きたい場所', items: [] },
+    ];
+    saveLists();
+  }
+  let activeListId = wishLists[0] ? wishLists[0].id : null;
+  let schedulingItemId = null;
+  let schedulingListId = null;
+
+  function saveLists() { localStorage.setItem(LIST_KEY, JSON.stringify(wishLists)); }
+
+  function syncListsToFirebase(uid) {
+    if (!uid) return;
+    const data = {};
+    wishLists.forEach(l => { data[l.id] = l; });
+    db.ref('users/' + uid + '/lists').set(data);
+  }
+
+  window.openListView = function() {
+    $('listView').classList.add('show');
+    if (wishLists.length > 0 && !wishLists.find(l => l.id === activeListId)) {
+      activeListId = wishLists[0].id;
+    }
+    renderListView();
+  };
+  window.closeListView = function() { $('listView').classList.remove('show'); };
+
+  function renderListView() {
+    // Tabs
+    const tabsHtml = wishLists.map(l =>
+      `<button class="list-tab ${l.id === activeListId ? 'active' : ''}" onclick="switchList('${l.id}')">${escapeHtml(l.name)}</button>`
+    ).join('') + `<button class="list-tab-add" onclick="addNewList()">+ 新規</button>`;
+    $('listTabs').innerHTML = tabsHtml;
+
+    // Content
+    const list = wishLists.find(l => l.id === activeListId);
+    if (!list) {
+      $('listContent').innerHTML = '<div class="list-empty"><div class="icon">📋</div><p>リストを作成してください</p></div>';
+      return;
+    }
+    const items = list.items || [];
+    let html = '<div class="list-items">';
+    if (items.length === 0) {
+      html += '<div class="list-empty"><div class="icon">✨</div><p>アイテムがありません</p></div>';
+    } else {
+      items.forEach((item, i) => {
+        html += `<div class="list-item ${item.done ? 'done' : ''}">
+          <div class="checkbox" onclick="toggleListItem('${list.id}',${i})"></div>
+          <span class="list-item-name">${linkify(item.name)}</span>
+          <div class="list-item-actions">
+            <button onclick="scheduleListItem('${list.id}',${i})" title="日付を設定">📅</button>
+            <button onclick="deleteListItem('${list.id}',${i})" title="削除">✕</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += '</div>';
+    html += `<div class="list-add-row">
+      <input type="text" id="listItemInput" placeholder="アイテムを追加..." onkeydown="if(event.key==='Enter'){event.preventDefault();addListItem();}">
+      <button onclick="addListItem()">追加</button>
+    </div>`;
+    html += `<div class="list-manage-bar">
+      <button onclick="renameList('${list.id}')">✏️ 名前変更</button>
+      <button onclick="deleteList('${list.id}')">🗑 リスト削除</button>
+    </div>`;
+    $('listContent').innerHTML = html;
+  }
+
+  window.switchList = function(id) { activeListId = id; renderListView(); };
+
+  window.addNewList = function() {
+    const name = prompt('リスト名を入力:');
+    if (!name || !name.trim()) return;
+    const newList = { id: uid(), name: name.trim(), items: [] };
+    wishLists.push(newList);
+    activeListId = newList.id;
+    saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    renderListView();
+  };
+
+  window.renameList = function(id) {
+    const list = wishLists.find(l => l.id === id);
+    if (!list) return;
+    const name = prompt('新しいリスト名:', list.name);
+    if (!name || !name.trim()) return;
+    list.name = name.trim();
+    saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    renderListView();
+  };
+
+  window.deleteList = function(id) {
+    if (!confirm('このリストを削除しますか？')) return;
+    wishLists = wishLists.filter(l => l.id !== id);
+    if (activeListId === id) activeListId = wishLists[0] ? wishLists[0].id : null;
+    saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    renderListView();
+  };
+
+  window.addListItem = function() {
+    const input = $('listItemInput');
+    const name = input.value.trim();
+    if (!name) return;
+    const list = wishLists.find(l => l.id === activeListId);
+    if (!list) return;
+    if (!list.items) list.items = [];
+    list.items.push({ id: uid(), name, done: false });
+    saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    input.value = '';
+    renderListView();
+    setTimeout(() => $('listItemInput').focus(), 50);
+  };
+
+  window.toggleListItem = function(listId, idx) {
+    const list = wishLists.find(l => l.id === listId);
+    if (list && list.items[idx]) {
+      list.items[idx].done = !list.items[idx].done;
+      saveLists();
+      if (currentUser) syncListsToFirebase(currentUser.uid);
+      renderListView();
+    }
+  };
+
+  window.deleteListItem = function(listId, idx) {
+    const list = wishLists.find(l => l.id === listId);
+    if (list) {
+      list.items.splice(idx, 1);
+      saveLists();
+      if (currentUser) syncListsToFirebase(currentUser.uid);
+      renderListView();
+    }
+  };
+
+  window.scheduleListItem = function(listId, idx) {
+    schedulingListId = listId;
+    schedulingItemId = idx;
+    $('listScheduleDate').value = todayStr();
+    // Populate category select
+    $('listScheduleCat').innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    $('listScheduleModal').classList.add('show');
+  };
+
+  window.closeListSchedule = function() {
+    $('listScheduleModal').classList.remove('show');
+    schedulingItemId = null;
+    schedulingListId = null;
+  };
+  $('listScheduleModal').addEventListener('click', e => { if (e.target === $('listScheduleModal')) closeListSchedule(); });
+
+  window.confirmListSchedule = function() {
+    const list = wishLists.find(l => l.id === schedulingListId);
+    if (!list || !list.items[schedulingItemId]) { closeListSchedule(); return; }
+    const item = list.items[schedulingItemId];
+    const date = $('listScheduleDate').value;
+    const cat = $('listScheduleCat').value;
+    // Create task from list item
+    tasks.unshift({
+      id: uid(), name: item.name, date: date, category: cat,
+      completed: false, subtasks: [], createdAt: new Date().toISOString()
+    });
+    // Remove from list
+    list.items.splice(schedulingItemId, 1);
+    save(); saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    closeListSchedule();
+    renderListView();
+    showSync('✓ タスクに移動しました');
+  };
+
   selectedDate = todayStr();
   renderDayNav();
   render();
@@ -1370,6 +1665,18 @@
       loadMemo();
     });
     dbListeners.push({ ref: memosRef, event: 'value', cb: memosListener });
+
+    // Lists
+    const listsRef = userRef.child('lists');
+    const listsListener = listsRef.on('value', snap => {
+      const data = snap.val();
+      if (data) {
+        wishLists = Object.values(data);
+      }
+      localStorage.setItem(LIST_KEY, JSON.stringify(wishLists));
+      if ($('listView').classList.contains('show')) renderListView();
+    });
+    dbListeners.push({ ref: listsRef, event: 'value', cb: listsListener });
 
     // CalChecks
     const calChecksRef = userRef.child('calChecks');
