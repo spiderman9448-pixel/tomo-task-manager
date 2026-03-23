@@ -239,6 +239,8 @@
     .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
     .task-date.overdue { color: var(--accent); font-weight: 600; }
     .cal-desc { font-size: 13px; color: var(--text-sub); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); line-height: 1.5; word-break: break-word; }
+    .cal-memo-edit-btn { display: inline-block; margin-top: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--text); }
+    .cal-memo-edit-btn:active { background: var(--border); }
     .subtask-count { font-size: 11px; color: var(--text-sub); }
     .cat-tag {
       font-size: 10px; font-weight: 600; padding: 1px 7px;
@@ -599,6 +601,18 @@
   </div>
 </div>
 
+<!-- Calendar Memo Edit Modal -->
+<div class="modal-overlay" id="calMemoModal" style="z-index:300">
+  <div class="modal">
+    <h2>📝 メモを編集</h2>
+    <textarea id="calMemoText" rows="5" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:14px;font-family:inherit;resize:vertical"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeCalMemo()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveCalMemo()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- List Schedule Modal -->
 <div class="modal-overlay" id="listScheduleModal" style="z-index:300">
   <div class="modal">
@@ -683,6 +697,7 @@
           (data.items || []).filter(e => e.status !== 'cancelled').forEach(e => {
             allEvents.push({
               id: e.id,
+              calendarId: cal.id,
               name: e.summary || '(無題)',
               description: e.description || '',
               startTime: e.start.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '終日',
@@ -712,13 +727,17 @@
   function renderCalEvent(ev) {
     const checked = calChecks[ev.id];
     const timeLabel = ev.allDay ? '終日' : `${ev.startTime}〜${ev.endTime}`;
-    const descHtml = ev.description ? `<div class="cal-desc" style="display:none">${linkify(ev.description.replace(/\n/g, '<br>'))}</div>` : '';
+    const hasDesc = ev.description && ev.description.trim();
+    const descHtml = `<div class="cal-desc" style="display:none">
+      ${hasDesc ? linkify(ev.description.replace(/\n/g, '<br>')) : '<span style="color:var(--text-sub);font-style:italic">メモなし</span>'}
+      <button class="cal-memo-edit-btn" onclick="event.stopPropagation(); openCalMemoEdit('${ev.calendarId}','${ev.id}')">✏️ メモを編集</button>
+    </div>`;
     return `
       <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="toggleCalDesc(this)">
         <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
         <div class="task-info">
           <div class="task-name-row">
-            <span class="task-name">${escapeHtml(ev.name)}${ev.description ? ' <span style="font-size:11px;color:var(--text-sub)">📝</span>' : ''}</span>
+            <span class="task-name">${escapeHtml(ev.name)}${hasDesc ? ' <span style="font-size:11px;color:var(--text-sub)">📝</span>' : ''}</span>
             <span class="task-date" style="color:#4285f4">${timeLabel}</span>
           </div>
           ${descHtml}
@@ -729,6 +748,40 @@
     const desc = card.querySelector('.cal-desc');
     if (!desc) return;
     desc.style.display = desc.style.display === 'none' ? 'block' : 'none';
+  };
+  window.openCalMemoEdit = function(calId, eventId) {
+    const ev = calEvents.find(e => e.id === eventId);
+    $('calMemoText').value = ev ? ev.description : '';
+    $('calMemoModal').dataset.calId = calId;
+    $('calMemoModal').dataset.eventId = eventId;
+    $('calMemoModal').classList.add('show');
+    setTimeout(() => $('calMemoText').focus(), 100);
+  };
+  window.closeCalMemo = function() { $('calMemoModal').classList.remove('show'); };
+  window.saveCalMemo = async function() {
+    const calId = $('calMemoModal').dataset.calId;
+    const eventId = $('calMemoModal').dataset.eventId;
+    const desc = $('calMemoText').value;
+    if (!calAccessToken) { showSync('⚠ カレンダー未接続'); return; }
+    try {
+      showSync('💾 保存中...');
+      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${eventId}`;
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + calAccessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: desc })
+      });
+      if (res.ok) {
+        const ev = calEvents.find(e => e.id === eventId);
+        if (ev) ev.description = desc;
+        showSync('✅ メモを保存しました');
+        closeCalMemo();
+        render();
+      } else {
+        const err = await res.json();
+        showSync('⚠ 保存失敗: ' + (err.error?.message || res.status));
+      }
+    } catch(e) { showSync('⚠ エラー: ' + e.message); }
   };
   const DEFAULT_CATS = [
     { id: 'personal', name: 'プライベート', color: '#e0956e' },
@@ -1726,7 +1779,7 @@
       client_id: CAL_CLIENT_ID,
       redirect_uri: CAL_REDIRECT_URI,
       response_type: 'token',
-      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      scope: 'https://www.googleapis.com/auth/calendar.events',
       prompt: 'consent',
       login_hint: auth.currentUser.email
     });
