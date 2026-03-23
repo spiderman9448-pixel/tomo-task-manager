@@ -1679,7 +1679,7 @@
     }
     html += '</div>';
     html += `<div class="list-add-row">
-      <input type="text" id="listItemInput" placeholder="アイテムを追加..." oncompositionstart="window._liComp=true" oncompositionend="window._liComp=false" onkeydown="if(event.key==='Enter'&&!event.isComposing&&!window._liComp){event.preventDefault();addListItem();}">
+      <input type="text" id="listItemInput" placeholder="アイテムを追加..." oncompositionstart="window._liComp=true" oncompositionend="setTimeout(function(){window._liComp=false},300)" onkeydown="if(event.key==='Enter'&&!event.isComposing&&!window._liComp){event.preventDefault();addListItem();}">
       <button onclick="addListItem()">追加</button>
     </div>`;
     html += `<div class="list-manage-bar">
@@ -1759,7 +1759,7 @@
     $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
     let listNameComposing = false;
     $('listNameInput').addEventListener('compositionstart', () => { listNameComposing = true; });
-    $('listNameInput').addEventListener('compositionend', () => { listNameComposing = false; });
+    $('listNameInput').addEventListener('compositionend', () => { setTimeout(() => { listNameComposing = false; }, 300); });
     $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !listNameComposing) { e.preventDefault(); confirmListName(); } });
   } catch(e) { console.log('listNameModal init error:', e); }
 
