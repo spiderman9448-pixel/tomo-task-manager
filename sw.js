@@ -1,4 +1,4 @@
-const CACHE = 'task-v31';
+const CACHE = 'task-v32';
 const ASSETS = ['./index.html', './icon.svg', './icon-192.png', './icon-512.png', './manifest.json'];
 
 self.addEventListener('install', e => {

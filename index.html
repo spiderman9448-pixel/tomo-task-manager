@@ -608,7 +608,7 @@
     <textarea id="calMemoText" rows="4" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:16px;font-family:inherit;resize:vertical;min-height:80px;box-sizing:border-box"></textarea>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-cancel" onclick="closeCalMemo()">キャンセル</button>
-      <button class="btn btn-primary" id="calMemoSaveBtn">保存</button>
+      <button class="btn btn-primary" onclick="saveCalMemo()" ontouchend="saveCalMemo()">保存</button>
     </div>
   </div>
 </div>
@@ -759,10 +759,11 @@
   };
   window.closeCalMemo = function() { $('calMemoModal').classList.remove('show'); };
   window.saveCalMemo = async function() {
+    alert('保存ボタン押された！ token=' + (calAccessToken ? 'あり' : 'なし'));
     const calId = $('calMemoModal').dataset.calId;
     const eventId = $('calMemoModal').dataset.eventId;
     const desc = $('calMemoText').value;
-    if (!calAccessToken) { showSync('⚠ カレンダー未接続'); return; }
+    if (!calAccessToken) { showSync('⚠ カレンダー未接続'); closeCalMemo(); return; }
     try {
       showSync('💾 保存中...');
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${eventId}`;
