@@ -759,8 +759,8 @@
     const calId = $('calMemoModal').dataset.calId;
     const eventId = $('calMemoModal').dataset.eventId;
     const desc = $('calMemoText').value;
-    if (!calAccessToken) { alert('カレンダー未接続です。設定から再接続してください。'); closeCalMemo(); return; }
-    if (!calId || !eventId) { alert('エラー: calId=' + calId + ' eventId=' + eventId); return; }
+    if (!calAccessToken) { showSync('⚠ カレンダー未接続'); closeCalMemo(); return; }
+    if (!calId || !eventId) { showSync('⚠ データエラー'); return; }
     try {
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${eventId}`;
       const res = await fetch(url, {
@@ -771,14 +771,14 @@
       if (res.ok) {
         const ev = calEvents.find(e => e.id === eventId);
         if (ev) ev.description = desc;
-        alert('✅ メモを保存しました！');
+        showSync('✅ メモを保存しました');
         closeCalMemo();
         render();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert('保存失敗 (' + res.status + '): ' + (err.error?.message || '権限がありません。カレンダーを切断→再接続してください。'));
+        showSync('⚠ 保存失敗: ' + (err.error?.message || res.status));
       }
-    } catch(e) { alert('通信エラー: ' + e.message); }
+    } catch(e) { showSync('⚠ ' + e.message); }
   };
   try { $('calMemoSaveBtn').addEventListener('click', () => saveCalMemo()); } catch(e) {}
   const DEFAULT_CATS = [
@@ -1763,7 +1763,8 @@
         history.replaceState(null, '', window.location.pathname);
         showSync('📅 カレンダー接続OK');
         // Fetch events after token set
-        if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
+        const ds = selectedDate || todayStr();
+        fetchCalendarEvents(ds).then(() => render());
       }
     } else if (hash.includes('error=')) {
       const params = new URLSearchParams(hash.substring(1));
