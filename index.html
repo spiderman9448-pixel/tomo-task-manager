@@ -285,13 +285,13 @@
       border-radius: 4px; color: #fff; white-space: nowrap; flex-shrink: 0;
     }
 
-    .desktop-actions { display: none; gap: 4px; flex-shrink: 0; }
+    .desktop-actions { display: flex; gap: 4px; flex-shrink: 0; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
     .icon-btn {
       width: 30px; height: 30px; border: none; border-radius: 6px;
       background: transparent; cursor: pointer; font-size: 15px;
       display: flex; align-items: center; justify-content: center; color: var(--text-sub);
     }
-    @media (hover: hover) { .task-card:hover .desktop-actions { display: flex; } }
+    @media (hover: hover) { .task-card:hover .desktop-actions, .list-item:hover .desktop-actions { opacity: 1; pointer-events: auto; } }
     @media (hover: none) { .desktop-actions { display: none !important; } }
 
     .subtask-area {
@@ -462,7 +462,6 @@
       padding: 4px; flex-shrink: 0; opacity: 0.5; transition: opacity 0.2s;
     }
     .list-cal-btn:active { opacity: 1; }
-    @media (hover: hover) { .list-item:hover .desktop-actions { display: flex; } }
     .list-add-row {
       display: flex; gap: 8px; margin-top: 12px;
     }
