@@ -730,7 +730,7 @@
     const hasDesc = ev.description && ev.description.trim();
     const descPreview = hasDesc ? `<div class="cal-desc-preview">${linkify(ev.description.replace(/\n/g, ' '))}</div>` : '';
     return `
-      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="if(!event.target.closest('a'))openCalMemoEdit('${ev.calendarId}','${ev.id}')">
+      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" data-cal-id="${encodeURIComponent(ev.calendarId)}" data-event-id="${ev.id}" onclick="if(!event.target.closest('a'))openCalMemoFromCard(this)">
         <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
         <div class="task-info">
           <div class="task-name-row">
@@ -741,6 +741,11 @@
         </div>
       </div>`;
   }
+  window.openCalMemoFromCard = function(card) {
+    const calId = decodeURIComponent(card.dataset.calId);
+    const eventId = card.dataset.eventId;
+    openCalMemoEdit(calId, eventId);
+  };
   window.openCalMemoEdit = function(calId, eventId) {
     const ev = calEvents.find(e => e.id === eventId);
     $('calMemoText').value = ev ? ev.description : '';
@@ -754,9 +759,9 @@
     const calId = $('calMemoModal').dataset.calId;
     const eventId = $('calMemoModal').dataset.eventId;
     const desc = $('calMemoText').value;
-    if (!calAccessToken) { showSync('⚠ カレンダー未接続'); closeCalMemo(); return; }
+    if (!calAccessToken) { alert('カレンダー未接続です。設定から再接続してください。'); closeCalMemo(); return; }
+    if (!calId || !eventId) { alert('エラー: calId=' + calId + ' eventId=' + eventId); return; }
     try {
-      showSync('💾 保存中...');
       const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${eventId}`;
       const res = await fetch(url, {
         method: 'PATCH',
@@ -766,14 +771,14 @@
       if (res.ok) {
         const ev = calEvents.find(e => e.id === eventId);
         if (ev) ev.description = desc;
-        showSync('✅ メモを保存しました');
+        alert('✅ メモを保存しました！');
         closeCalMemo();
         render();
       } else {
-        const err = await res.json();
-        showSync('⚠ 保存失敗: ' + (err.error?.message || res.status));
+        const err = await res.json().catch(() => ({}));
+        alert('保存失敗 (' + res.status + '): ' + (err.error?.message || '権限がありません。カレンダーを切断→再接続してください。'));
       }
-    } catch(e) { showSync('⚠ エラー: ' + e.message); }
+    } catch(e) { alert('通信エラー: ' + e.message); }
   };
   try { $('calMemoSaveBtn').addEventListener('click', () => saveCalMemo()); } catch(e) {}
   const DEFAULT_CATS = [
