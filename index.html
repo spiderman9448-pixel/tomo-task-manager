@@ -602,13 +602,13 @@
 </div>
 
 <!-- Calendar Memo Edit Modal -->
-<div class="modal-overlay" id="calMemoModal" style="z-index:300">
-  <div class="modal">
-    <h2>📝 メモを編集</h2>
-    <textarea id="calMemoText" rows="5" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:14px;font-family:inherit;resize:vertical"></textarea>
-    <div class="modal-actions">
+<div class="modal-overlay" id="calMemoModal" style="z-index:300" onclick="if(event.target===this)closeCalMemo()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>&#9998; メモを編集</h2>
+    <textarea id="calMemoText" rows="4" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:16px;font-family:inherit;resize:vertical;min-height:80px;box-sizing:border-box"></textarea>
+    <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-cancel" onclick="closeCalMemo()">キャンセル</button>
-      <button class="btn btn-primary" onclick="saveCalMemo()">保存</button>
+      <button class="btn btn-primary" id="calMemoSaveBtn">保存</button>
     </div>
   </div>
 </div>
@@ -730,7 +730,7 @@
     const hasDesc = ev.description && ev.description.trim();
     const descHtml = `<div class="cal-desc" style="display:none">
       ${hasDesc ? linkify(ev.description.replace(/\n/g, '<br>')) : '<span style="color:var(--text-sub);font-style:italic">メモなし</span>'}
-      <button class="cal-memo-edit-btn" onclick="event.stopPropagation(); openCalMemoEdit('${ev.calendarId}','${ev.id}')">✏️ メモを編集</button>
+      <button class="cal-memo-edit-btn" onclick="event.stopPropagation(); openCalMemoEdit('${ev.calendarId}','${ev.id}')">&#9998; メモを編集</button>
     </div>`;
     return `
       <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="toggleCalDesc(this)">
@@ -783,6 +783,7 @@
       }
     } catch(e) { showSync('⚠ エラー: ' + e.message); }
   };
+  try { $('calMemoSaveBtn').addEventListener('click', () => saveCalMemo()); } catch(e) {}
   const DEFAULT_CATS = [
     { id: 'personal', name: 'プライベート', color: '#e0956e' },
     { id: 'work', name: '仕事', color: '#888' },
