@@ -415,13 +415,12 @@
     .list-item.done .checkbox::after { content: "\2713"; color: #fff; font-size: 14px; font-weight: 700; }
     .list-item.done .list-item-name { text-decoration: line-through; }
     .list-item-name { flex: 1; font-size: 16px; font-weight: 600; word-break: break-word; }
-    .list-item-actions { display: flex; gap: 4px; }
-    .list-item-actions button {
-      width: 30px; height: 30px; border: none; border-radius: 6px;
-      background: transparent; cursor: pointer; font-size: 14px;
-      color: var(--text-sub); display: flex; align-items: center; justify-content: center;
+    .list-swipe-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
+    .list-swipe-actions {
+      position: absolute; top: 0; bottom: 0; right: 0;
+      display: flex; visibility: hidden;
     }
-    .list-item-actions button:active { background: var(--bg); }
+    .list-swipe-wrapper.swiping .list-swipe-actions { visibility: visible; }
     .list-add-row {
       display: flex; gap: 8px; margin-top: 12px;
     }
@@ -1417,12 +1416,15 @@
       html += '<div class="list-empty"><div class="icon">✨</div><p>アイテムがありません</p></div>';
     } else {
       items.forEach((item, i) => {
-        html += `<div class="list-item ${item.done ? 'done' : ''}">
-          <div class="checkbox" onclick="toggleListItem('${list.id}',${i})"></div>
-          <span class="list-item-name">${linkify(item.name)}</span>
-          <div class="list-item-actions">
-            <button onclick="scheduleListItem('${list.id}',${i})" title="日付を設定">📅</button>
-            <button onclick="deleteListItem('${list.id}',${i})" title="削除">✕</button>
+        html += `<div class="list-swipe-wrapper">
+          <div class="list-swipe-actions">
+            <button class="swipe-btn move-btn" onclick="scheduleListItem('${list.id}',${i})"><span class="swipe-icon">📅</span>移動</button>
+            <button class="swipe-btn edit-btn" onclick="editListItem('${list.id}',${i})"><span class="swipe-icon">&#9998;</span>編集</button>
+            <button class="swipe-btn del-btn" onclick="deleteListItem('${list.id}',${i})"><span class="swipe-icon">&#10005;</span>削除</button>
+          </div>
+          <div class="list-item ${item.done ? 'done' : ''}" data-li="${i}">
+            <div class="checkbox" onclick="toggleListItem('${list.id}',${i})"></div>
+            <span class="list-item-name">${linkify(item.name)}</span>
           </div>
         </div>`;
       });
@@ -1437,7 +1439,49 @@
       <button onclick="deleteList('${list.id}')">🗑 リスト削除</button>
     </div>`;
     $('listContent').innerHTML = html;
+    initListSwipe();
   }
+
+  function initListSwipe() {
+    document.querySelectorAll('.list-item[data-li]').forEach(card => {
+      let sx = 0, cx = 0, moved = false, sw = false;
+      card.addEventListener('touchstart', e => {
+        if (e.target.closest('.checkbox')) return;
+        sx = e.touches[0].clientX; cx = sx; moved = false; sw = true;
+        card.style.transition = 'none';
+        document.querySelectorAll('.list-item[data-li]').forEach(c => {
+          if (c !== card) { c.style.transform = ''; const w = c.closest('.list-swipe-wrapper'); if (w) w.classList.remove('swiping'); }
+        });
+      }, { passive: true });
+      card.addEventListener('touchmove', e => {
+        if (!sw) return; cx = e.touches[0].clientX;
+        const d = cx - sx;
+        if (Math.abs(d) > 8) { moved = true; const w = card.closest('.list-swipe-wrapper'); if (w) w.classList.add('swiping'); }
+        if (!moved) return;
+        card.style.transform = `translateX(${Math.max(-180, Math.min(0, d))}px)`;
+      }, { passive: true });
+      card.addEventListener('touchend', () => {
+        if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
+        const wrap = card.closest('.list-swipe-wrapper');
+        if (!moved) { card.style.transform = ''; if (wrap) wrap.classList.remove('swiping'); return; }
+        if (cx - sx < -50) {
+          card.style.transform = 'translateX(-180px)';
+        } else {
+          card.style.transform = ''; if (wrap) wrap.classList.remove('swiping');
+        }
+      });
+    });
+  }
+
+  window.editListItem = function(listId, idx) {
+    const list = wishLists.find(l => l.id === listId);
+    if (!list || !list.items[idx]) return;
+    $('listNameTitle').textContent = 'アイテムを編集';
+    $('listNameInput').value = list.items[idx].name;
+    listNameCallback = 'editItem:' + listId + ':' + idx;
+    $('listNameModal').classList.add('show');
+    setTimeout(() => $('listNameInput').focus(), 100);
+  };
 
   window.switchList = function(id) { activeListId = id; renderListView(); };
 
@@ -1479,6 +1523,11 @@
       const id = listNameCallback.split(':')[1];
       const list = wishLists.find(l => l.id === id);
       if (list) list.name = name;
+    } else if (listNameCallback && listNameCallback.startsWith('editItem:')) {
+      const parts = listNameCallback.split(':');
+      const listId = parts[1], idx = parseInt(parts[2]);
+      const list = wishLists.find(l => l.id === listId);
+      if (list && list.items[idx]) list.items[idx].name = name;
     }
     saveLists();
     if (currentUser) syncListsToFirebase(currentUser.uid);
