@@ -1679,7 +1679,7 @@
     }
     html += '</div>';
     html += `<div class="list-add-row">
-      <input type="text" id="listItemInput" placeholder="アイテムを追加..." onkeydown="if(event.key==='Enter'){event.preventDefault()}" onkeyup="if(event.key==='Enter'&&!window._liComp){addListItem()}" oncompositionstart="window._liComp=true" oncompositionend="window._liComp=true;setTimeout(function(){window._liComp=false},500)">
+      <input type="text" id="listItemInput" placeholder="アイテムを追加...">
       <button onclick="addListItem()">追加</button>
     </div>`;
     html += `<div class="list-manage-bar">
@@ -1688,6 +1688,16 @@
     </div>`;
     $('listContent').innerHTML = html;
     initListSwipe();
+    // IME-safe Enter handling for list item input
+    const liInput = $('listItemInput');
+    if (liInput) {
+      let liLastCompEnd = 0;
+      liInput.addEventListener('compositionend', () => { liLastCompEnd = Date.now(); });
+      liInput.addEventListener('keydown', e => { if (e.key === 'Enter' || e.keyCode === 229) e.preventDefault(); });
+      liInput.addEventListener('keyup', e => {
+        if (e.key === 'Enter' && (Date.now() - liLastCompEnd) > 800) addListItem();
+      });
+    }
   }
 
   function initListSwipe() {
@@ -1757,11 +1767,10 @@
   window.closeListNameModal = function() { $('listNameModal').classList.remove('show'); };
   try {
     $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
-    let listNameComposing = false;
-    $('listNameInput').addEventListener('compositionstart', () => { listNameComposing = true; });
-    $('listNameInput').addEventListener('compositionend', () => { listNameComposing = true; setTimeout(() => { listNameComposing = false; }, 500); });
-    $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
-    $('listNameInput').addEventListener('keyup', e => { if (e.key === 'Enter' && !listNameComposing) confirmListName(); });
+    let lnLastCompEnd = 0;
+    $('listNameInput').addEventListener('compositionend', () => { lnLastCompEnd = Date.now(); });
+    $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter' || e.keyCode === 229) e.preventDefault(); });
+    $('listNameInput').addEventListener('keyup', e => { if (e.key === 'Enter' && (Date.now() - lnLastCompEnd) > 800) confirmListName(); });
   } catch(e) { console.log('listNameModal init error:', e); }
 
   window.confirmListName = function() {
