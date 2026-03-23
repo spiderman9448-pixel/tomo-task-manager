@@ -417,9 +417,12 @@
     .list-item.done .checkbox::after { content: "\2713"; color: #fff; font-size: 14px; font-weight: 700; }
     .list-item.done .list-item-name { text-decoration: line-through; }
     .list-item-name { flex: 1; font-size: 16px; font-weight: 600; word-break: break-word; }
-    .list-desktop-actions { display: none; gap: 4px; margin-left: auto; flex-shrink: 0; }
-    @media (hover: hover) { .list-item:hover .list-desktop-actions { display: flex; } }
-    @media (hover: none) { .list-desktop-actions { display: none !important; } }
+    .list-cal-btn {
+      border: none; background: transparent; cursor: pointer; font-size: 16px;
+      padding: 4px; flex-shrink: 0; opacity: 0.5; transition: opacity 0.2s;
+    }
+    .list-cal-btn:active { opacity: 1; }
+    @media (hover: hover) { .list-item:hover .desktop-actions { display: flex; } }
     .list-add-row {
       display: flex; gap: 8px; margin-top: 12px;
     }
@@ -1425,15 +1428,14 @@
       items.forEach((item, i) => {
         html += `<div class="swipe-wrapper">
           <div class="swipe-actions swipe-left">
-            <button class="swipe-btn move-btn" onclick="scheduleListItem('${list.id}',${i})"><span class="swipe-icon">📅</span>移動</button>
             <button class="swipe-btn edit-btn" onclick="editListItem('${list.id}',${i})"><span class="swipe-icon">&#9998;</span>編集</button>
             <button class="swipe-btn del-btn" onclick="deleteListItem('${list.id}',${i})"><span class="swipe-icon">&#10005;</span>削除</button>
           </div>
           <div class="list-item ${item.done ? 'done' : ''}" data-li="${i}">
             <div class="checkbox" onclick="toggleListItem('${list.id}',${i})"></div>
             <span class="list-item-name">${linkify(item.name)}</span>
-            <div class="list-desktop-actions">
-              <button class="icon-btn" onclick="scheduleListItem('${list.id}',${i})" title="日付を設定">📅</button>
+            <button class="list-cal-btn" onclick="event.stopPropagation(); scheduleListItem('${list.id}',${i})" title="日付を設定">📅</button>
+            <div class="desktop-actions">
               <button class="icon-btn" onclick="editListItem('${list.id}',${i})" title="編集">&#9998;</button>
               <button class="icon-btn delete" onclick="deleteListItem('${list.id}',${i})" title="削除">&#128465;</button>
             </div>
@@ -1459,7 +1461,7 @@
     document.querySelectorAll('.list-item[data-li]').forEach(card => {
       let sx = 0, cx = 0, moved = false, sw = false;
       card.addEventListener('touchstart', e => {
-        if (e.target.closest('.checkbox')) return;
+        if (e.target.closest('.checkbox') || e.target.closest('.list-cal-btn')) return;
         sx = e.touches[0].clientX; cx = sx; moved = false; sw = true;
         card.style.transition = 'none';
         document.querySelectorAll('.list-item[data-li]').forEach(c => {
@@ -1471,14 +1473,14 @@
         const d = cx - sx;
         if (Math.abs(d) > 8) { moved = true; const w = card.closest('.swipe-wrapper'); if (w) w.classList.add('swiping'); }
         if (!moved) return;
-        card.style.transform = `translateX(${Math.max(-180, Math.min(0, d))}px)`;
+        card.style.transform = `translateX(${Math.max(-144, Math.min(0, d))}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
         if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
         const wrap = card.closest('.swipe-wrapper');
         if (!moved) { card.style.transform = ''; if (wrap) wrap.classList.remove('swiping'); return; }
         if (cx - sx < -50) {
-          card.style.transform = 'translateX(-180px)';
+          card.style.transform = 'translateX(-144px)';
         } else {
           card.style.transform = ''; if (wrap) wrap.classList.remove('swiping');
         }
