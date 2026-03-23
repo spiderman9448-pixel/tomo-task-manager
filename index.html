@@ -416,12 +416,6 @@
     .list-item.done .checkbox::after { content: "\2713"; color: #fff; font-size: 14px; font-weight: 700; }
     .list-item.done .list-item-name { text-decoration: line-through; }
     .list-item-name { flex: 1; font-size: 16px; font-weight: 600; word-break: break-word; }
-    .list-swipe-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
-    .list-swipe-actions {
-      position: absolute; top: 0; bottom: 0; right: 0;
-      display: flex; visibility: hidden; z-index: 1;
-    }
-    .list-swipe-wrapper.swiping .list-swipe-actions { visibility: visible; }
     .list-desktop-actions { display: none; gap: 4px; margin-left: auto; flex-shrink: 0; }
     @media (hover: hover) { .list-item:hover .list-desktop-actions { display: flex; } }
     @media (hover: none) { .list-desktop-actions { display: none !important; } }
@@ -1420,8 +1414,8 @@
       html += '<div class="list-empty"><div class="icon">✨</div><p>アイテムがありません</p></div>';
     } else {
       items.forEach((item, i) => {
-        html += `<div class="list-swipe-wrapper">
-          <div class="list-swipe-actions">
+        html += `<div class="swipe-wrapper">
+          <div class="swipe-actions swipe-left">
             <button class="swipe-btn move-btn" onclick="scheduleListItem('${list.id}',${i})"><span class="swipe-icon">📅</span>移動</button>
             <button class="swipe-btn edit-btn" onclick="editListItem('${list.id}',${i})"><span class="swipe-icon">&#9998;</span>編集</button>
             <button class="swipe-btn del-btn" onclick="deleteListItem('${list.id}',${i})"><span class="swipe-icon">&#10005;</span>削除</button>
@@ -1436,6 +1430,7 @@
             </div>
           </div>
         </div>`;
+
       });
     }
     html += '</div>';
@@ -1459,19 +1454,19 @@
         sx = e.touches[0].clientX; cx = sx; moved = false; sw = true;
         card.style.transition = 'none';
         document.querySelectorAll('.list-item[data-li]').forEach(c => {
-          if (c !== card) { c.style.transform = ''; const w = c.closest('.list-swipe-wrapper'); if (w) w.classList.remove('swiping'); }
+          if (c !== card) { c.style.transform = ''; const w = c.closest('.swipe-wrapper'); if (w) w.classList.remove('swiping'); }
         });
       }, { passive: true });
       card.addEventListener('touchmove', e => {
         if (!sw) return; cx = e.touches[0].clientX;
         const d = cx - sx;
-        if (Math.abs(d) > 8) { moved = true; const w = card.closest('.list-swipe-wrapper'); if (w) w.classList.add('swiping'); }
+        if (Math.abs(d) > 8) { moved = true; const w = card.closest('.swipe-wrapper'); if (w) w.classList.add('swiping'); }
         if (!moved) return;
         card.style.transform = `translateX(${Math.max(-180, Math.min(0, d))}px)`;
       }, { passive: true });
       card.addEventListener('touchend', () => {
         if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
-        const wrap = card.closest('.list-swipe-wrapper');
+        const wrap = card.closest('.swipe-wrapper');
         if (!moved) { card.style.transform = ''; if (wrap) wrap.classList.remove('swiping'); return; }
         if (cx - sx < -50) {
           card.style.transform = 'translateX(-180px)';
