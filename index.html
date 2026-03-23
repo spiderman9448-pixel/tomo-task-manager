@@ -902,27 +902,26 @@
     return '';
   }
 
-  // Day swipe
+  // Day swipe (touch + mouse)
   (function() {
     const nav = $('dayNav');
     let sx = 0, moving = false;
-    nav.addEventListener('touchstart', e => { sx = e.touches[0].clientX; moving = true; }, { passive: true });
-    nav.addEventListener('touchmove', e => {
+    function swipeMove(cx) {
       if (!moving) return;
-      const diff = e.touches[0].clientX - sx;
+      const diff = cx - sx;
       const inner = $('dayNavInner');
       inner.style.transition = 'none';
       inner.style.transform = `translateX(calc(-100% + ${diff}px))`;
-    }, { passive: true });
-    nav.addEventListener('touchend', e => {
+    }
+    function swipeEnd(cx) {
       if (!moving) return; moving = false;
-      const diff = e.changedTouches[0].clientX - sx;
+      const diff = cx - sx;
       const inner = $('dayNavInner');
-      if (diff < -50) { // swipe left = next day
+      if (diff < -50) {
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(-200%)';
         setTimeout(() => { dayOffset++; renderDayNav(); renderWeek(); const d = new Date(); d.setDate(d.getDate()+dayOffset); selectedDate = toStr(d); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
-      } else if (diff > 50) { // swipe right = prev day
+      } else if (diff > 50) {
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(0%)';
         setTimeout(() => { dayOffset--; renderDayNav(); renderWeek(); const d = new Date(); d.setDate(d.getDate()+dayOffset); selectedDate = toStr(d); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
@@ -930,7 +929,16 @@
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(-100%)';
       }
-    });
+    }
+    // Touch
+    nav.addEventListener('touchstart', e => { sx = e.touches[0].clientX; moving = true; }, { passive: true });
+    nav.addEventListener('touchmove', e => { swipeMove(e.touches[0].clientX); }, { passive: true });
+    nav.addEventListener('touchend', e => { swipeEnd(e.changedTouches[0].clientX); });
+    // Mouse (PC)
+    nav.addEventListener('mousedown', e => { sx = e.clientX; moving = true; e.preventDefault(); });
+    nav.addEventListener('mousemove', e => { swipeMove(e.clientX); });
+    nav.addEventListener('mouseup', e => { swipeEnd(e.clientX); });
+    nav.addEventListener('mouseleave', e => { if (moving) swipeEnd(e.clientX); });
   })();
 
   window.selectDay = function(ds) {
@@ -1295,34 +1303,26 @@
   });
 
 
-  // Drag handle reorder
+  // Drag handle reorder (touch + mouse)
   let dragId = null;
-  document.addEventListener('touchstart', e => {
-    const handle = e.target.closest('.drag-handle');
-    if (!handle) return;
-    e.preventDefault();
+  function dragStart(handle) {
     dragId = handle.dataset.drag;
     const card = handle.closest('.task-card');
     if (card) card.classList.add('dragging');
     try { navigator.vibrate(20); } catch(ex) {}
-  }, { passive: false });
-
-  document.addEventListener('touchmove', e => {
+  }
+  function dragMove(x, y) {
     if (!dragId) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const el = document.elementFromPoint(x, y);
     document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
     const target = el && el.closest('.task-card');
     if (target && target.dataset.id !== dragId) target.classList.add('drag-target');
-  }, { passive: false });
-
-  document.addEventListener('touchend', e => {
+  }
+  function dragEnd(x, y) {
     if (!dragId) return;
     document.querySelectorAll('.dragging').forEach(c => c.classList.remove('dragging'));
     document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
-    const touch = e.changedTouches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const el = document.elementFromPoint(x, y);
     const target = el && el.closest('.task-card');
     if (target && target.dataset.id !== dragId) {
       const fi = tasks.findIndex(t => t.id === dragId);
@@ -1334,7 +1334,25 @@
       }
     }
     dragId = null;
+  }
+  // Touch
+  document.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    e.preventDefault();
+    dragStart(handle);
+  }, { passive: false });
+  document.addEventListener('touchmove', e => { if (!dragId) return; e.preventDefault(); dragMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  document.addEventListener('touchend', e => { if (!dragId) return; dragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
+  // Mouse (PC)
+  document.addEventListener('mousedown', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    e.preventDefault();
+    dragStart(handle);
   });
+  document.addEventListener('mousemove', e => { if (!dragId) return; e.preventDefault(); dragMove(e.clientX, e.clientY); });
+  document.addEventListener('mouseup', e => { if (!dragId) return; dragEnd(e.clientX, e.clientY); });
 
   // === Wish Lists ===
   const LIST_KEY = 'task-manager-lists';
