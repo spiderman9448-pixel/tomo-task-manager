@@ -1407,9 +1407,13 @@
     });
   }
 
-  // CRUD
+  // CRUD - IME-safe submit
+  let taskLastCompEnd = 0;
+  taskInput.addEventListener('compositionend', () => { taskLastCompEnd = Date.now(); });
+  taskInput.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.isComposing || e.keyCode === 229 || (Date.now() - taskLastCompEnd) < 800)) e.preventDefault(); });
   addForm.addEventListener('submit', e => {
     e.preventDefault();
+    if ((Date.now() - taskLastCompEnd) < 800) return;
     const name = taskInput.value.trim(); if (!name) return;
     tasks.unshift({
       id: uid(), name, date: dateInput.value, category: catInput.value,
