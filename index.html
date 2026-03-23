@@ -675,7 +675,7 @@
   }
 
   async function fetchCalendarEvents(dateStr) {
-    if (!calAccessToken) { calEvents = []; console.log('CAL: no token'); return; }
+    if (!calAccessToken) { calEvents = []; return; }
     try {
       const headers = { Authorization: 'Bearer ' + calAccessToken };
       const timeMin = dateStr + 'T00:00:00+09:00';
@@ -727,8 +727,9 @@
   function renderCalEvent(ev) {
     const checked = calChecks[ev.id];
     const timeLabel = ev.allDay ? '終日' : `${ev.startTime}〜${ev.endTime}`;
-    const hasDesc = ev.description && ev.description.trim();
-    const descPreview = hasDesc ? `<div class="cal-desc-preview">${linkify(ev.description.replace(/\n/g, ' '))}</div>` : '';
+    const memo = calMemos[ev.id] || ev.description || '';
+    const hasDesc = memo.trim();
+    const descPreview = hasDesc ? `<div class="cal-desc-preview">${linkify(memo.replace(/\n/g, ' '))}</div>` : '';
     return `
       <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" data-cal-id="${encodeURIComponent(ev.calendarId)}" data-event-id="${ev.id}" onclick="if(!event.target.closest('a'))openCalMemoFromCard(this)">
         <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
@@ -748,37 +749,28 @@
   };
   window.openCalMemoEdit = function(calId, eventId) {
     const ev = calEvents.find(e => e.id === eventId);
-    $('calMemoText').value = ev ? ev.description : '';
-    $('calMemoModal').dataset.calId = calId;
+    const googleDesc = ev ? ev.description : '';
+    const localMemo = calMemos[eventId] || '';
+    $('calMemoText').value = localMemo || googleDesc;
     $('calMemoModal').dataset.eventId = eventId;
     $('calMemoModal').classList.add('show');
     setTimeout(() => $('calMemoText').focus(), 100);
   };
   window.closeCalMemo = function() { $('calMemoModal').classList.remove('show'); };
-  window.saveCalMemo = async function() {
-    const calId = $('calMemoModal').dataset.calId;
+  const CAL_MEMO_KEY = 'task-manager-cal-memos';
+  let calMemos = JSON.parse(localStorage.getItem(CAL_MEMO_KEY) || '{}');
+  function saveCalMemos() {
+    localStorage.setItem(CAL_MEMO_KEY, JSON.stringify(calMemos));
+    if (currentUser) db.ref('users/' + currentUser.uid + '/calMemos').set(calMemos);
+  }
+  window.saveCalMemo = function() {
     const eventId = $('calMemoModal').dataset.eventId;
-    const desc = $('calMemoText').value;
-    if (!calAccessToken) { showSync('⚠ カレンダー未接続'); closeCalMemo(); return; }
-    if (!calId || !eventId) { showSync('⚠ データエラー'); return; }
-    try {
-      const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${eventId}`;
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: { Authorization: 'Bearer ' + calAccessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: desc })
-      });
-      if (res.ok) {
-        const ev = calEvents.find(e => e.id === eventId);
-        if (ev) ev.description = desc;
-        showSync('✅ メモを保存しました');
-        closeCalMemo();
-        render();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showSync('⚠ 保存失敗: ' + (err.error?.message || res.status));
-      }
-    } catch(e) { showSync('⚠ ' + e.message); }
+    const memo = $('calMemoText').value.trim();
+    if (memo) { calMemos[eventId] = memo; } else { delete calMemos[eventId]; }
+    saveCalMemos();
+    showSync('✅ メモを保存しました');
+    closeCalMemo();
+    render();
   };
   try { $('calMemoSaveBtn').addEventListener('click', () => saveCalMemo()); } catch(e) {}
   const DEFAULT_CATS = [
@@ -1754,7 +1746,6 @@
   // Check for OAuth callback token in URL hash on page load
   (function checkOAuthCallback() {
     const hash = window.location.hash;
-    document.title = 'T:' + (calAccessToken ? 'あり' : 'なし') + ' H:' + (hash ? hash.substring(0,30) : 'なし');
     if (hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
       const token = params.get('access_token');
@@ -1762,7 +1753,7 @@
         calAccessToken = token;
         localStorage.setItem(CAL_TOKEN_KEY, token);
         history.replaceState(null, '', window.location.pathname);
-        document.title = 'CAL:接続OK token取得済み';
+        showSync('📅 カレンダー接続OK');
       }
     } else if (hash.includes('error=')) {
       const params = new URLSearchParams(hash.substring(1));
@@ -1770,7 +1761,7 @@
       calAccessToken = null;
       localStorage.removeItem(CAL_TOKEN_KEY);
       history.replaceState(null, '', window.location.pathname);
-      document.title = 'CAL:エラー ' + err;
+      showSync('⚠ カレンダー接続失敗: ' + err);
     }
   })();
 
@@ -1780,7 +1771,7 @@
       client_id: CAL_CLIENT_ID,
       redirect_uri: CAL_REDIRECT_URI,
       response_type: 'token',
-      scope: 'https://www.googleapis.com/auth/calendar.events',
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
       prompt: 'consent',
       login_hint: auth.currentUser.email
     });
@@ -1901,6 +1892,15 @@
       localStorage.setItem(CAL_CHECK_KEY, JSON.stringify(calChecks));
     });
     dbListeners.push({ ref: calChecksRef, event: 'value', cb: calChecksListener });
+
+    // CalMemos
+    const calMemosRef = userRef.child('calMemos');
+    const calMemosListener = calMemosRef.on('value', snap => {
+      const data = snap.val();
+      calMemos = data || {};
+      localStorage.setItem(CAL_MEMO_KEY, JSON.stringify(calMemos));
+    });
+    dbListeners.push({ ref: calMemosRef, event: 'value', cb: calMemosListener });
 
     // Upload local data if cloud is empty
     tasksRef.once('value', snap => {
