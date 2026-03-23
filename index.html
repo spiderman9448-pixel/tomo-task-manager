@@ -1408,12 +1408,12 @@
   }
 
   // CRUD - IME-safe submit
-  let taskLastCompEnd = 0;
-  taskInput.addEventListener('compositionend', () => { taskLastCompEnd = Date.now(); });
-  taskInput.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.isComposing || e.keyCode === 229 || (Date.now() - taskLastCompEnd) < 800)) e.preventDefault(); });
+  let taskJustComposed = false;
+  taskInput.addEventListener('compositionend', () => { taskJustComposed = true; });
+  taskInput.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.isComposing || e.keyCode === 229 || taskJustComposed)) { e.preventDefault(); taskJustComposed = false; } });
   addForm.addEventListener('submit', e => {
     e.preventDefault();
-    if ((Date.now() - taskLastCompEnd) < 800) return;
+    if (taskJustComposed) { taskJustComposed = false; return; }
     const name = taskInput.value.trim(); if (!name) return;
     tasks.unshift({
       id: uid(), name, date: dateInput.value, category: catInput.value,
@@ -1696,12 +1696,12 @@
     const liInput = $('listItemInput');
     const liForm = $('listAddForm');
     if (liInput && liForm) {
-      let liLastCompEnd = 0;
-      liInput.addEventListener('compositionend', () => { liLastCompEnd = Date.now(); });
-      liInput.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.isComposing || e.keyCode === 229 || (Date.now() - liLastCompEnd) < 800)) e.preventDefault(); });
+      let liJustComposed = false;
+      liInput.addEventListener('compositionend', () => { liJustComposed = true; });
+      liInput.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.isComposing || e.keyCode === 229 || liJustComposed)) { e.preventDefault(); liJustComposed = false; } });
       liForm.addEventListener('submit', e => {
         e.preventDefault();
-        if ((Date.now() - liLastCompEnd) < 800) return;
+        if (liJustComposed) { liJustComposed = false; return; }
         addListItem();
       });
     }
@@ -1774,12 +1774,12 @@
   window.closeListNameModal = function() { $('listNameModal').classList.remove('show'); };
   try {
     $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
-    let lnLastCompEnd = 0;
-    $('listNameInput').addEventListener('compositionend', () => { lnLastCompEnd = Date.now(); });
+    let lnJustComposed = false;
+    $('listNameInput').addEventListener('compositionend', () => { lnJustComposed = true; });
     $('listNameInput').addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      if (e.isComposing || e.keyCode === 229 || (Date.now() - lnLastCompEnd) < 800) return;
+      if (e.isComposing || e.keyCode === 229 || lnJustComposed) { lnJustComposed = false; return; }
       confirmListName();
     });
   } catch(e) { console.log('listNameModal init error:', e); }
