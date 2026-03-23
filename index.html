@@ -238,6 +238,7 @@
     .task-name a, .sub-name a { color: #5590c8; text-decoration: underline; word-break: break-all; }
     .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
     .task-date.overdue { color: var(--accent); font-weight: 600; }
+    .cal-desc { font-size: 13px; color: var(--text-sub); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); line-height: 1.5; word-break: break-word; }
     .subtask-count { font-size: 11px; color: var(--text-sub); }
     .cat-tag {
       font-size: 10px; font-weight: 600; padding: 1px 7px;
@@ -680,6 +681,7 @@
             allEvents.push({
               id: e.id,
               name: e.summary || '(無題)',
+              description: e.description || '',
               startTime: e.start.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '終日',
               endTime: e.end.dateTime ? new Date(e.end.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '',
               allDay: !e.start.dateTime,
@@ -707,17 +709,24 @@
   function renderCalEvent(ev) {
     const checked = calChecks[ev.id];
     const timeLabel = ev.allDay ? '終日' : `${ev.startTime}〜${ev.endTime}`;
+    const descHtml = ev.description ? `<div class="cal-desc" style="display:none">${linkify(ev.description.replace(/\n/g, '<br>'))}</div>` : '';
     return `
-      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4">
+      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="toggleCalDesc(this)">
         <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
         <div class="task-info">
           <div class="task-name-row">
-            <span class="task-name">${escapeHtml(ev.name)}</span>
+            <span class="task-name">${escapeHtml(ev.name)}${ev.description ? ' <span style="font-size:11px;color:var(--text-sub)">📝</span>' : ''}</span>
             <span class="task-date" style="color:#4285f4">${timeLabel}</span>
           </div>
+          ${descHtml}
         </div>
       </div>`;
   }
+  window.toggleCalDesc = function(card) {
+    const desc = card.querySelector('.cal-desc');
+    if (!desc) return;
+    desc.style.display = desc.style.display === 'none' ? 'block' : 'none';
+  };
   const DEFAULT_CATS = [
     { id: 'personal', name: 'プライベート', color: '#e0956e' },
     { id: 'work', name: '仕事', color: '#888' },
