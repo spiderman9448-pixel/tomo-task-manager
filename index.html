@@ -728,9 +728,9 @@
     const checked = calChecks[ev.id];
     const timeLabel = ev.allDay ? '終日' : `${ev.startTime}〜${ev.endTime}`;
     const hasDesc = ev.description && ev.description.trim();
-    const descPreview = hasDesc ? `<div class="cal-desc-preview">${escapeHtml(ev.description.split('\n')[0]).substring(0, 60)}${ev.description.length > 60 ? '...' : ''}</div>` : '';
+    const descPreview = hasDesc ? `<div class="cal-desc-preview">${linkify(ev.description.replace(/\n/g, ' '))}</div>` : '';
     return `
-      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="openCalMemoEdit('${ev.calendarId}','${ev.id}')">
+      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="if(!event.target.closest('a'))openCalMemoEdit('${ev.calendarId}','${ev.id}')">
         <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
         <div class="task-info">
           <div class="task-name-row">
