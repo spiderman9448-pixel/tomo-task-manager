@@ -14,7 +14,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #f7f7f5; --surface: #fff; --text: #2d2d2d; --text-sub: #999;
+      --bg: #edecea; --surface: #fff; --text: #2d2d2d; --text-sub: #999;
       --border: #ebebeb; --primary: #666; --primary-hover: #555;
       --accent: #f0887d; --accent-bg: #fff5f4;
       --sat: #5590c8; --sun: #d45555; --holiday: #d45555;
@@ -43,7 +43,7 @@
       width: 8px; height: 8px; border-radius: 50%;
       background: #ccc; display: inline-block; margin-left: 2px;
     }
-    .auth-dot.logged-in { background: #4ade80; }
+    .auth-dot.logged-in { background: #dfff00; }
     /* Auth section in settings modal */
     .auth-section {
       display: flex; align-items: center; justify-content: space-between;
@@ -118,6 +118,44 @@
     .week-day.today .day-num { background: #888; color: #fff; }
     .week-day.today.selected .day-num { box-shadow: 0 0 0 2px #888; }
     .week-day.today .dow { font-weight: 700; }
+
+    /* Month calendar */
+    .month-cal { display: none; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; }
+    .month-cal.active { display: block; }
+    .week-cal.hidden { display: none; }
+    .month-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; }
+    .month-header .month-title { font-size: 18px; font-weight: 700; }
+    .month-nav { display: flex; gap: 8px; }
+    .month-nav button {
+      width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; color: var(--text-sub);
+    }
+    .month-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 8px; }
+    .month-dow-cell { text-align: center; font-size: 11px; color: var(--text-sub); font-weight: 500; padding: 4px 0; }
+    .month-dow-cell:first-child { color: var(--sun); }
+    .month-dow-cell:last-child { color: var(--sat); }
+    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 4px 8px 12px; gap: 2px; }
+    .month-cell {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 4px 0; border-radius: 8px; cursor: pointer; min-height: 40px;
+    }
+    .month-cell:active { background: var(--bg); }
+    .month-cell .mc-num { font-size: 13px; font-weight: 600; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+    .month-cell.other-month .mc-num { color: #ccc; }
+    .month-cell.today .mc-num { background: #888; color: #fff; }
+    .month-cell.selected .mc-num { box-shadow: 0 0 0 2px var(--text-sub); }
+    .month-cell.today.selected .mc-num { box-shadow: 0 0 0 2px #888; }
+    .month-cell.sunday .mc-num { color: var(--sun); }
+    .month-cell.saturday .mc-num { color: var(--sat); }
+    .month-cell.other-month.sunday .mc-num, .month-cell.other-month.saturday .mc-num { color: #ddd; }
+    .month-cell .mc-dots { display: flex; gap: 1px; margin-top: 2px; height: 4px; }
+    .month-cell .mc-dot { width: 3px; height: 3px; border-radius: 50%; }
+    .view-toggle {
+      background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-sub);
+      padding: 2px 8px; border-radius: 6px;
+    }
+    .view-toggle:active { background: var(--bg); }
 
     /* Day navigator */
     .day-nav {
@@ -235,8 +273,12 @@
     .task-name-row { display: flex; align-items: center; gap: 8px; }
     .task-meta-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
     .task-name { font-size: 16px; font-weight: 600; word-break: break-word; flex: 1; }
+    .task-name a, .sub-name a { color: #5590c8; text-decoration: underline; word-break: break-all; }
     .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
     .task-date.overdue { color: var(--accent); font-weight: 600; }
+    .cal-desc-preview { font-size: 12px; color: var(--text-sub); margin-top: 4px; line-height: 1.4; word-break: break-word; }
+    .cal-memo-edit-btn { display: inline-block; margin-top: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--text); }
+    .cal-memo-edit-btn:active { background: var(--border); }
     .subtask-count { font-size: 11px; color: var(--text-sub); }
     .cat-tag {
       font-size: 10px; font-weight: 600; padding: 1px 7px;
@@ -355,6 +397,97 @@
     .empty-state .icon { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
     .empty-state p { font-size: 14px; }
     .empty-state .hint { font-size: 11px; margin-top: 6px; opacity: 0.6; }
+    #taskList { min-height: 80px; padding-bottom: 20px; }
+    .tap-to-add { min-height: 150px; cursor: pointer; }
+
+    /* Wish Lists */
+    .lists-btn {
+      padding: 6px 16px; border: none; border-radius: 16px;
+      background: #e8e6e3; font-size: 12px; font-weight: 600;
+      color: #555; cursor: pointer; margin-left: auto;
+    }
+    .lists-btn:active { opacity: 0.7; transform: scale(0.97); }
+    .list-view {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg); z-index: 200; overflow-y: auto;
+    }
+    .list-view.show { display: block; }
+    .list-view-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; background: var(--surface);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1;
+    }
+    .list-view-header .back-btn {
+      width: 32px; height: 32px; border: none; background: transparent;
+      font-size: 20px; cursor: pointer; color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .list-view-header h2 { font-size: 18px; font-weight: 700; flex: 1; }
+    .list-view-body { max-width: 800px; margin: 0 auto; padding: 16px; }
+    .list-tabs {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .list-tabs::-webkit-scrollbar { display: none; }
+    .list-tab {
+      padding: 6px 16px; border: 1px solid var(--border); border-radius: 20px;
+      background: var(--surface); font-size: 13px; font-weight: 600;
+      cursor: pointer; white-space: nowrap; color: var(--text-sub);
+    }
+    .list-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .list-tab-add {
+      padding: 6px 12px; border: 1px dashed var(--border); border-radius: 20px;
+      background: transparent; font-size: 13px; cursor: pointer; color: var(--text-sub);
+      white-space: nowrap;
+    }
+    .list-items { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .list-item {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); padding: 12px 14px;
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      position: relative; z-index: 2;
+    }
+    .list-item.done { opacity: 0.45; }
+    .list-item .checkbox {
+      width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px;
+      cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .list-item.done .checkbox { background: var(--primary); border-color: var(--primary); }
+    .list-item.done .checkbox::after { content: "\2713"; color: #fff; font-size: 14px; font-weight: 700; }
+    .list-item.done .list-item-name { text-decoration: line-through; }
+    .list-item-name { flex: 1; font-size: 16px; font-weight: 600; word-break: break-word; }
+    .list-cal-btn {
+      border: none; background: transparent; cursor: pointer; font-size: 16px;
+      padding: 4px; flex-shrink: 0; opacity: 0.5; transition: opacity 0.2s;
+    }
+    .list-cal-btn:active { opacity: 1; }
+    @media (hover: hover) { .list-item:hover .desktop-actions { display: flex; } }
+    .list-add-row {
+      display: flex; gap: 8px; margin-top: 12px;
+    }
+    .list-add-row input {
+      flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; background: var(--surface);
+      outline: none;
+    }
+    .list-add-row input:focus { border-color: var(--primary); }
+    .list-add-row button {
+      padding: 10px 16px; border: none; border-radius: var(--radius);
+      background: var(--primary); color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer;
+    }
+    .list-empty { text-align: center; padding: 40px 20px; color: var(--text-sub); }
+    .list-empty .icon { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
+    .list-manage-bar {
+      display: flex; gap: 8px; margin-top: 8px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .list-manage-bar button {
+      padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 12px; cursor: pointer; color: var(--text-sub);
+    }
+    .list-manage-bar button:active { background: var(--bg); }
 
     @media (max-width: 600px) {
       .container { padding: 16px 10px; }
@@ -364,6 +497,7 @@
       .modal input, .modal select { font-size: 16px; }
       .add-subtask input { font-size: 16px; }
       .subtask-area { padding-left: 76px; }
+      .list-add-row input { font-size: 16px; }
     }
   </style>
 </head>
@@ -383,12 +517,37 @@
         <span class="auth-dot" id="authDot" title="未ログイン"></span>
       </div>
       <div class="week-nav">
+        <button class="view-toggle" onclick="toggleCalView()" id="calViewToggle">月</button>
         <button onclick="moveWeek(-1)">&#9664;</button>
         <button onclick="moveWeek(0)">今日</button>
         <button onclick="moveWeek(1)">&#9654;</button>
       </div>
     </div>
     <div class="week-days" id="weekDays"></div>
+  </div>
+
+  <div class="month-cal" id="monthCal">
+    <div class="month-header">
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="settings-btn" onclick="openCatSettings()" title="カテゴリ設定">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <span class="month-title" id="monthTitle"></span>
+        <span class="auth-dot" id="authDotMonth"></span>
+      </div>
+      <div class="month-nav">
+        <button class="view-toggle" onclick="toggleCalView()">週</button>
+        <button onclick="moveMonth(-1)">&#9664;</button>
+        <button onclick="moveMonth(0)">今月</button>
+        <button onclick="moveMonth(1)">&#9654;</button>
+      </div>
+    </div>
+    <div class="month-dow-row">
+      <div class="month-dow-cell">日</div><div class="month-dow-cell">月</div><div class="month-dow-cell">火</div>
+      <div class="month-dow-cell">水</div><div class="month-dow-cell">木</div><div class="month-dow-cell">金</div>
+      <div class="month-dow-cell">土</div>
+    </div>
+    <div class="month-grid" id="monthGrid"></div>
   </div>
 
   <!-- Day swipe navigator -->
@@ -406,10 +565,12 @@
     <span class="pill" data-filter="pending">未完了</span>
     <span class="pill" data-filter="done">完了済み</span>
     <span class="pill" data-filter="someday">いつか</span>
+    <button class="lists-btn" onclick="openListView()">📋 リスト</button>
   </div>
 
   <div class="stats-inline" id="statsInline"></div>
   <div id="taskList"></div>
+  <div class="tap-to-add" onclick="openAddModal()"></div>
 </div>
 
 <!-- FAB -->
@@ -467,6 +628,69 @@
   </div>
 </div>
 
+<!-- List View -->
+<div class="list-view" id="listView">
+  <div class="list-view-header">
+    <button class="back-btn" onclick="closeListView()">&#8592;</button>
+    <h2>マイリスト</h2>
+  </div>
+  <div class="list-view-body">
+    <div class="list-tabs" id="listTabs"></div>
+    <div id="listContent"></div>
+  </div>
+</div>
+
+<!-- List Name Input Modal -->
+<div class="modal-overlay" id="listNameModal" style="z-index:300">
+  <div class="modal">
+    <h2 id="listNameTitle">リスト名</h2>
+    <input type="text" id="listNameInput" placeholder="リスト名を入力...">
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeListNameModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="confirmListName()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- List Delete Confirm Modal -->
+<div class="modal-overlay" id="listDeleteModal" style="z-index:300">
+  <div class="modal">
+    <h2>リストを削除</h2>
+    <p style="font-size:14px;color:var(--text-sub);margin-bottom:8px">このリストとすべてのアイテムが削除されます。</p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeListDelete()">キャンセル</button>
+      <button class="btn" style="background:var(--sun);color:#fff" onclick="confirmListDelete()">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar Memo Edit Modal -->
+<div class="modal-overlay" id="calMemoModal" style="z-index:300" onclick="if(event.target===this)closeCalMemo()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>✏️ メモを編集</h2>
+    <textarea id="calMemoText" rows="4" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:16px;font-family:inherit;resize:vertical;min-height:80px;box-sizing:border-box"></textarea>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn btn-cancel" onclick="closeCalMemo()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveCalMemo()" ontouchend="saveCalMemo()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- List Schedule Modal -->
+<div class="modal-overlay" id="listScheduleModal" style="z-index:300">
+  <div class="modal">
+    <h2>日付を設定してタスクに移動</h2>
+    <label>日付</label>
+    <input type="date" id="listScheduleDate">
+    <label>カテゴリ</label>
+    <select id="listScheduleCat"></select>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeListSchedule()">キャンセル</button>
+      <button class="btn btn-primary" onclick="confirmListSchedule()">移動</button>
+    </div>
+  </div>
+</div>
+
 <!-- Category Settings Modal -->
 <div class="modal-overlay" id="catModal">
   <div class="modal">
@@ -477,6 +701,10 @@
       <button class="auth-action-btn" id="authActionBtn" onclick="signIn()">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style="width:14px;height:14px;vertical-align:middle;margin-right:4px">ログイン
       </button>
+    </div>
+    <div class="auth-section" id="calSection" style="display:none">
+      <span style="font-size:13px">📅 カレンダー</span>
+      <button class="auth-action-btn" id="calConnectBtn" onclick="connectCalendar()">接続</button>
     </div>
     <h2>カテゴリ管理</h2>
     <div class="cat-list" id="catList"></div>
@@ -494,19 +722,140 @@
 <script>
   const TASK_KEY = 'task-manager-data';
   const CAT_KEY = 'task-manager-cats';
+  const CAL_CHECK_KEY = 'task-manager-cal-checks';
+
+  // Google Calendar integration
+  const CAL_TOKEN_KEY = 'task-manager-cal-token';
+  let calAccessToken = localStorage.getItem(CAL_TOKEN_KEY) || null;
+  let calEvents = [];
+  let calChecks = JSON.parse(localStorage.getItem(CAL_CHECK_KEY) || '{}');
+
+  function saveCalChecks() {
+    localStorage.setItem(CAL_CHECK_KEY, JSON.stringify(calChecks));
+    if (currentUser) {
+      db.ref('users/' + currentUser.uid + '/calChecks').set(calChecks);
+    }
+  }
+
+  async function fetchCalendarEvents(dateStr) {
+    if (!calAccessToken) { calEvents = []; return; }
+    // Check if token expired, try silent refresh first
+    if (calTokenExpired()) {
+      const ok = await silentRefreshCalToken();
+      if (!ok) { calEvents = []; updateCalUI(); return; }
+    }
+    try {
+      const headers = { Authorization: 'Bearer ' + calAccessToken };
+      const timeMin = dateStr + 'T00:00:00+09:00';
+      const timeMax = dateStr + 'T23:59:59+09:00';
+      // Get all calendars
+      const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers });
+      if (listRes.status === 401) {
+        // Try silent refresh once
+        const ok = await silentRefreshCalToken();
+        if (ok) { return fetchCalendarEvents(dateStr); }
+        calAccessToken = null; localStorage.removeItem(CAL_TOKEN_KEY); localStorage.removeItem(CAL_EXPIRY_KEY);
+        calEvents = []; updateCalUI(); showSync('⚠ カレンダー再接続してください'); return;
+      }
+      if (!listRes.ok) { calEvents = []; return; }
+      const listData = await listRes.json();
+      const calendars = (listData.items || []).filter(c => c.selected !== false);
+      // Fetch events from all calendars in parallel
+      const allEvents = [];
+      await Promise.all(calendars.map(async cal => {
+        try {
+          const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+          const res = await fetch(url, { headers });
+          if (!res.ok) return;
+          const data = await res.json();
+          (data.items || []).filter(e => e.status !== 'cancelled').forEach(e => {
+            allEvents.push({
+              id: e.id,
+              calendarId: cal.id,
+              name: e.summary || '(無題)',
+              description: e.description || '',
+              startTime: e.start.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '終日',
+              endTime: e.end.dateTime ? new Date(e.end.dateTime).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) : '',
+              allDay: !e.start.dateTime,
+              calColor: cal.backgroundColor || '#4285f4'
+            });
+          });
+        } catch(e) {}
+      }));
+      // Sort: all-day first, then by start time
+      allEvents.sort((a, b) => {
+        if (a.allDay && !b.allDay) return -1;
+        if (!a.allDay && b.allDay) return 1;
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      });
+      calEvents = allEvents;
+    } catch (e) { calEvents = []; }
+  }
+
+  function toggleCalCheck(eventId) {
+    calChecks[eventId] = !calChecks[eventId];
+    saveCalChecks();
+    render();
+  }
+
+  function renderCalEvent(ev) {
+    const checked = calChecks[ev.id];
+    const timeLabel = ev.allDay ? '終日' : `${ev.startTime}〜${ev.endTime}`;
+    const memo = calMemos[ev.id] || ev.description || '';
+    const hasDesc = memo.trim();
+    const descPreview = hasDesc ? `<div class="cal-desc-preview">${linkify(memo.replace(/\n/g, ' '))}</div>` : '';
+    return `
+      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" data-cal-id="${encodeURIComponent(ev.calendarId)}" data-event-id="${ev.id}" onclick="if(!event.target.closest('a'))openCalMemoFromCard(this)">
+        <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
+        <div class="task-info">
+          <div class="task-name-row">
+            <span class="task-name">${escapeHtml(ev.name)}</span>
+            <span class="task-date" style="color:#4285f4">${timeLabel}</span>
+          </div>
+          ${descPreview}
+        </div>
+      </div>`;
+  }
+  window.openCalMemoFromCard = function(card) {
+    const calId = decodeURIComponent(card.dataset.calId);
+    const eventId = card.dataset.eventId;
+    openCalMemoEdit(calId, eventId);
+  };
+  window.openCalMemoEdit = function(calId, eventId) {
+    const ev = calEvents.find(e => e.id === eventId);
+    const googleDesc = ev ? ev.description : '';
+    const localMemo = calMemos[eventId] || '';
+    $('calMemoText').value = localMemo || googleDesc;
+    $('calMemoModal').dataset.eventId = eventId;
+    $('calMemoModal').classList.add('show');
+    setTimeout(() => $('calMemoText').focus(), 100);
+  };
+  window.closeCalMemo = function() { $('calMemoModal').classList.remove('show'); };
+  const CAL_MEMO_KEY = 'task-manager-cal-memos';
+  let calMemos = JSON.parse(localStorage.getItem(CAL_MEMO_KEY) || '{}');
+  function saveCalMemos() {
+    localStorage.setItem(CAL_MEMO_KEY, JSON.stringify(calMemos));
+    if (currentUser) db.ref('users/' + currentUser.uid + '/calMemos').set(calMemos);
+  }
+  window.saveCalMemo = function() {
+    const eventId = $('calMemoModal').dataset.eventId;
+    const memo = $('calMemoText').value.trim();
+    if (memo) { calMemos[eventId] = memo; } else { delete calMemos[eventId]; }
+    saveCalMemos();
+    showSync('✅ メモを保存しました');
+    closeCalMemo();
+    render();
+  };
+  try { $('calMemoSaveBtn').addEventListener('click', () => saveCalMemo()); } catch(e) {}
   const DEFAULT_CATS = [
-    { id: 'morning', name: '朝', color: '#f0b775' },
-    { id: 'daytime', name: '昼', color: '#5ec2b0' },
-    { id: 'evening', name: '夜', color: '#7c8cc8' },
-    { id: 'night', name: '寝る前', color: '#a78bba' },
-    { id: 'work', name: '仕事', color: '#888' },
     { id: 'personal', name: 'プライベート', color: '#e0956e' },
+    { id: 'work', name: '仕事', color: '#888' },
   ];
 
   let tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]');
   let categories = JSON.parse(localStorage.getItem(CAT_KEY) || 'null');
   if (!categories || categories.length < 5) { categories = DEFAULT_CATS; saveCats(); }
-  let currentFilter = 'all', selectedDate = null, weekOffset = 0, editingId = null;
+  let currentFilter = 'all', selectedDate = todayStr(), weekOffset = 0, editingId = null;
   const openSubtasks = new Set();
 
   const $ = id => document.getElementById(id);
@@ -548,6 +897,7 @@
   function isOverdue(date, done) { return date && date < todayStr() && !done; }
   function getCat(id) { return categories.find(c => c.id === id) || { name: '未分類', color: '#9ca3af' }; }
   function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function linkify(s) { return escapeHtml(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" onclick="event.stopPropagation()">$1</a>'); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
   dateInput.value = todayStr();
@@ -681,34 +1031,164 @@
     return '';
   }
 
-  // Day swipe
+  // Tap empty space in task list area to add task
+  $('taskList').addEventListener('click', e => {
+    if (e.target === $('taskList')) openAddModal();
+  });
+  document.querySelector('.tap-to-add').addEventListener('click', () => openAddModal());
+
+  // Day swipe (touch + mouse)
   (function() {
     const nav = $('dayNav');
     let sx = 0, moving = false;
-    nav.addEventListener('touchstart', e => { sx = e.touches[0].clientX; moving = true; }, { passive: true });
-    nav.addEventListener('touchmove', e => {
+    function swipeMove(cx) {
       if (!moving) return;
-      const diff = e.touches[0].clientX - sx;
+      const diff = cx - sx;
       const inner = $('dayNavInner');
       inner.style.transition = 'none';
       inner.style.transform = `translateX(calc(-100% + ${diff}px))`;
-    }, { passive: true });
-    nav.addEventListener('touchend', e => {
+    }
+    function swipeEnd(cx) {
       if (!moving) return; moving = false;
-      const diff = e.changedTouches[0].clientX - sx;
+      const diff = cx - sx;
       const inner = $('dayNavInner');
-      if (diff < -50) { // swipe left = next day
+      if (diff < -50) {
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(-200%)';
-        setTimeout(() => { dayOffset++; renderDayNav(); renderWeek(); render(); }, 200);
-      } else if (diff > 50) { // swipe right = prev day
+        setTimeout(() => { dayOffset++; renderDayNav(); renderWeek(); const d = new Date(); d.setDate(d.getDate()+dayOffset); selectedDate = toStr(d); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
+      } else if (diff > 50) {
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(0%)';
-        setTimeout(() => { dayOffset--; renderDayNav(); renderWeek(); render(); }, 200);
+        setTimeout(() => { dayOffset--; renderDayNav(); renderWeek(); const d = new Date(); d.setDate(d.getDate()+dayOffset); selectedDate = toStr(d); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
       } else {
         inner.style.transition = 'transform 0.2s ease';
         inner.style.transform = 'translateX(-100%)';
       }
+    }
+    // Touch
+    nav.addEventListener('touchstart', e => { sx = e.touches[0].clientX; moving = true; }, { passive: true });
+    nav.addEventListener('touchmove', e => { swipeMove(e.touches[0].clientX); }, { passive: true });
+    nav.addEventListener('touchend', e => { swipeEnd(e.changedTouches[0].clientX); });
+    // Mouse (PC)
+    nav.addEventListener('mousedown', e => { sx = e.clientX; moving = true; e.preventDefault(); });
+    nav.addEventListener('mousemove', e => { swipeMove(e.clientX); });
+    nav.addEventListener('mouseup', e => { swipeEnd(e.clientX); });
+    nav.addEventListener('mouseleave', e => { if (moving) swipeEnd(e.clientX); });
+  })();
+
+  // ===== Monthly Calendar =====
+  let calViewMode = 'week'; // 'week' or 'month'
+  let monthViewYear = new Date().getFullYear();
+  let monthViewMonth = new Date().getMonth();
+
+  window.toggleCalView = function() {
+    if (calViewMode === 'week') {
+      calViewMode = 'month';
+      // Set month view to selected date's month
+      const sd = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
+      monthViewYear = sd.getFullYear();
+      monthViewMonth = sd.getMonth();
+      document.querySelector('.week-cal').classList.add('hidden');
+      $('monthCal').classList.add('active');
+      $('calViewToggle').textContent = '週';
+      renderMonthCal();
+    } else {
+      calViewMode = 'week';
+      document.querySelector('.week-cal').classList.remove('hidden');
+      $('monthCal').classList.remove('active');
+      $('calViewToggle').textContent = '月';
+      renderWeek();
+    }
+  };
+
+  window.moveMonth = function(dir) {
+    if (dir === 0) {
+      monthViewYear = new Date().getFullYear();
+      monthViewMonth = new Date().getMonth();
+    } else {
+      monthViewMonth += dir;
+      if (monthViewMonth > 11) { monthViewMonth = 0; monthViewYear++; }
+      if (monthViewMonth < 0) { monthViewMonth = 11; monthViewYear--; }
+    }
+    renderMonthCal();
+  };
+
+  function renderMonthCal() {
+    $('monthTitle').textContent = `${monthViewYear}年${monthViewMonth + 1}月`;
+    const firstDay = new Date(monthViewYear, monthViewMonth, 1);
+    const startDow = firstDay.getDay(); // 0=Sun
+    const daysInMonth = new Date(monthViewYear, monthViewMonth + 1, 0).getDate();
+    const t = todayStr();
+    let cells = '';
+
+    // Previous month's trailing days
+    const prevDays = new Date(monthViewYear, monthViewMonth, 0).getDate();
+    for (let i = startDow - 1; i >= 0; i--) {
+      const d = new Date(monthViewYear, monthViewMonth - 1, prevDays - i);
+      const ds = toStr(d);
+      const dow = d.getDay();
+      let cls = 'month-cell other-month';
+      if (dow === 0) cls += ' sunday';
+      if (dow === 6) cls += ' saturday';
+      cells += `<div class="${cls}" onclick="selectDayFromMonth('${ds}')"><span class="mc-num">${d.getDate()}</span><div class="mc-dots"></div></div>`;
+    }
+
+    // Current month days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(monthViewYear, monthViewMonth, day);
+      const ds = toStr(d);
+      const dow = d.getDay();
+      const dayTasks = tasks.filter(tk => tk.date === ds && !tk.completed);
+      const cats = [...new Set(dayTasks.map(tk => tk.category))];
+      const dots = cats.slice(0, 3).map(cid => {
+        const c = getCat(cid);
+        return `<span class="mc-dot" style="background:${c.color}"></span>`;
+      }).join('');
+
+      let cls = 'month-cell';
+      if (ds === t) cls += ' today';
+      if (selectedDate === ds) cls += ' selected';
+      if (dow === 0 || getHoliday(ds)) cls += ' sunday';
+      if (dow === 6) cls += ' saturday';
+      cells += `<div class="${cls}" onclick="selectDayFromMonth('${ds}')"><span class="mc-num">${day}</span><div class="mc-dots">${dots}</div></div>`;
+    }
+
+    // Next month's leading days
+    const totalCells = startDow + daysInMonth;
+    const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(monthViewYear, monthViewMonth + 1, i);
+      const ds = toStr(d);
+      const dow = d.getDay();
+      let cls = 'month-cell other-month';
+      if (dow === 0) cls += ' sunday';
+      if (dow === 6) cls += ' saturday';
+      cells += `<div class="${cls}" onclick="selectDayFromMonth('${ds}')"><span class="mc-num">${i}</span><div class="mc-dots"></div></div>`;
+    }
+
+    $('monthGrid').innerHTML = cells;
+  }
+
+  window.selectDayFromMonth = function(ds) {
+    const target = new Date(ds + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    dayOffset = Math.round((target - today) / 86400000);
+    selectedDate = ds;
+    currentFilter = 'all'; updatePills();
+    renderDayNav();
+    if (calViewMode === 'month') renderMonthCal();
+    else renderWeek();
+    fetchCalendarEvents(ds).then(() => render());
+  };
+
+  // Swipe month calendar
+  (function() {
+    const el = $('monthGrid'); let sx = 0;
+    if (!el) return;
+    el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    el.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - sx;
+      if (Math.abs(dx) > 60) moveMonth(dx < 0 ? 1 : -1);
     });
   })();
 
@@ -719,7 +1199,8 @@
     dayOffset = Math.round((target - today) / 86400000);
     selectedDate = ds;
     currentFilter = 'all'; updatePills();
-    renderDayNav(); renderWeek(); render();
+    renderDayNav(); renderWeek();
+    fetchCalendarEvents(ds).then(() => render());
   };
   window.moveWeek = function(dir) {
     if (dir === 0) {
@@ -810,7 +1291,7 @@
           <div class="checkbox" onclick="event.stopPropagation(); toggleComplete('${task.id}')"></div>
           <div class="task-info" onclick="if(!this.closest('.task-card').classList.contains('swiped'))toggleSubtasks('${task.id}')">
             <div class="task-name-row">
-              <span class="task-name">${escapeHtml(task.name)}</span>
+              <span class="task-name">${linkify(task.name)}</span>
               ${subInfo}
               ${dateLabel ? `<span class="task-date${od ? ' overdue' : ''}">${dateLabel}</span>` : ''}
             </div>
@@ -824,7 +1305,7 @@
           ${subs.map((s, i) => `
             <div class="subtask-item">
               <div class="sub-check ${s.done ? 'done' : ''}" onclick="toggleSub('${task.id}',${i})"></div>
-              <span class="sub-name ${s.done ? 'done' : ''}">${escapeHtml(s.name)}</span>
+              <span class="sub-name ${s.done ? 'done' : ''}">${linkify(s.name)}</span>
               <button class="sub-del" onclick="delSub('${task.id}',${i})">&#10005;</button>
             </div>`).join('')}
           <div class="add-subtask">
@@ -837,9 +1318,18 @@
   function render() {
     updateStats(); renderWeek(); loadMemo();
     const filtered = filterTasks();
-    if (filtered.length === 0) {
+    const hasCalEvents = selectedDate && calEvents.length > 0;
+    if (filtered.length === 0 && !hasCalEvents) {
       $('taskList').innerHTML = '<div class="empty-state" onclick="openAddModal()"><div class="icon">&#10024;</div><p>タスクがありません</p><p class="hint">タップしてタスクを追加</p></div>';
       return;
+    }
+    let html = '';
+    // Calendar events group
+    if (hasCalEvents) {
+      html += `<div class="cat-group">
+        <div class="cat-group-title"><span class="cat-dot" style="background:#4285f4"></span>📅 カレンダー</div>
+        <div class="task-list">${calEvents.map(renderCalEvent).join('')}</div>
+      </div>`;
     }
     // Group by category
     const groups = {};
@@ -853,7 +1343,6 @@
       const ai = catOrder.indexOf(a), bi = catOrder.indexOf(b);
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-    let html = '';
     for (const cid of sortedKeys) {
       const cat = getCat(cid);
       html += `<div class="cat-group">
@@ -1065,34 +1554,26 @@
   });
 
 
-  // Drag handle reorder
+  // Drag handle reorder (touch + mouse)
   let dragId = null;
-  document.addEventListener('touchstart', e => {
-    const handle = e.target.closest('.drag-handle');
-    if (!handle) return;
-    e.preventDefault();
+  function dragStart(handle) {
     dragId = handle.dataset.drag;
     const card = handle.closest('.task-card');
     if (card) card.classList.add('dragging');
     try { navigator.vibrate(20); } catch(ex) {}
-  }, { passive: false });
-
-  document.addEventListener('touchmove', e => {
+  }
+  function dragMove(x, y) {
     if (!dragId) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const el = document.elementFromPoint(x, y);
     document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
     const target = el && el.closest('.task-card');
     if (target && target.dataset.id !== dragId) target.classList.add('drag-target');
-  }, { passive: false });
-
-  document.addEventListener('touchend', e => {
+  }
+  function dragEnd(x, y) {
     if (!dragId) return;
     document.querySelectorAll('.dragging').forEach(c => c.classList.remove('dragging'));
     document.querySelectorAll('.drag-target').forEach(c => c.classList.remove('drag-target'));
-    const touch = e.changedTouches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const el = document.elementFromPoint(x, y);
     const target = el && el.closest('.task-card');
     if (target && target.dataset.id !== dragId) {
       const fi = tasks.findIndex(t => t.id === dragId);
@@ -1104,7 +1585,292 @@
       }
     }
     dragId = null;
+  }
+  // Touch
+  document.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    e.preventDefault();
+    dragStart(handle);
+  }, { passive: false });
+  document.addEventListener('touchmove', e => { if (!dragId) return; e.preventDefault(); dragMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  document.addEventListener('touchend', e => { if (!dragId) return; dragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
+  // Mouse (PC)
+  document.addEventListener('mousedown', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    e.preventDefault();
+    dragStart(handle);
   });
+  document.addEventListener('mousemove', e => { if (!dragId) return; e.preventDefault(); dragMove(e.clientX, e.clientY); });
+  document.addEventListener('mouseup', e => { if (!dragId) return; dragEnd(e.clientX, e.clientY); });
+
+  // === Wish Lists ===
+  const LIST_KEY = 'task-manager-lists';
+  let wishLists = JSON.parse(localStorage.getItem(LIST_KEY) || 'null');
+  if (!wishLists) {
+    wishLists = [
+      { id: uid(), name: 'やりたいこと', items: [] },
+      { id: uid(), name: '行きたい場所', items: [] },
+    ];
+    saveLists();
+  }
+  let activeListId = wishLists[0] ? wishLists[0].id : null;
+  let schedulingItemId = null;
+  let schedulingListId = null;
+
+  function saveLists() {
+    localStorage.setItem(LIST_KEY, JSON.stringify(wishLists));
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+  }
+
+  function syncListsToFirebase(uid) {
+    if (!uid) return;
+    const data = {};
+    wishLists.forEach(l => { data[l.id] = l; });
+    db.ref('users/' + uid + '/lists').set(data);
+  }
+
+  window.openListView = function() {
+    $('listView').classList.add('show');
+    if (wishLists.length > 0 && !wishLists.find(l => l.id === activeListId)) {
+      activeListId = wishLists[0].id;
+    }
+    renderListView();
+  };
+  window.closeListView = function() { $('listView').classList.remove('show'); };
+
+  function renderListView() {
+    // Tabs
+    const tabsHtml = wishLists.map(l =>
+      `<button class="list-tab ${l.id === activeListId ? 'active' : ''}" onclick="switchList('${l.id}')">${escapeHtml(l.name)}</button>`
+    ).join('') + `<button class="list-tab-add" onclick="addNewList()">+ 新規</button>`;
+    $('listTabs').innerHTML = tabsHtml;
+
+    // Content
+    const list = wishLists.find(l => l.id === activeListId);
+    if (!list) {
+      $('listContent').innerHTML = '<div class="list-empty"><div class="icon">📋</div><p>リストを作成してください</p></div>';
+      return;
+    }
+    const items = list.items || [];
+    let html = '<div class="list-items">';
+    if (items.length === 0) {
+      html += '<label for="listItemInput" class="list-empty" style="cursor:pointer;display:block"><div class="icon">✨</div><p>アイテムがありません</p><p style="font-size:12px;color:var(--text-sub)">タップして追加</p></label>';
+    } else {
+      items.forEach((item, i) => {
+        html += `<div class="swipe-wrapper">
+          <div class="swipe-actions swipe-left">
+            <button class="swipe-btn edit-btn" onclick="editListItem('${list.id}',${i})"><span class="swipe-icon">&#9998;</span>編集</button>
+            <button class="swipe-btn del-btn" onclick="deleteListItem('${list.id}',${i})"><span class="swipe-icon">&#10005;</span>削除</button>
+          </div>
+          <div class="list-item ${item.done ? 'done' : ''}" data-li="${i}">
+            <div class="checkbox" onclick="toggleListItem('${list.id}',${i})"></div>
+            <span class="list-item-name">${linkify(item.name)}</span>
+            <button class="list-cal-btn" onclick="event.stopPropagation(); scheduleListItem('${list.id}',${i})" title="日付を設定">📅</button>
+            <div class="desktop-actions">
+              <button class="icon-btn" onclick="editListItem('${list.id}',${i})" title="編集">&#9998;</button>
+              <button class="icon-btn delete" onclick="deleteListItem('${list.id}',${i})" title="削除">&#128465;</button>
+            </div>
+          </div>
+        </div>`;
+
+      });
+    }
+    html += '</div>';
+    html += `<div class="list-add-row">
+      <input type="text" id="listItemInput" placeholder="アイテムを追加..." onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addListItem();}">
+      <button onclick="addListItem()">追加</button>
+    </div>`;
+    html += `<div class="list-manage-bar">
+      <button onclick="renameList('${list.id}')">✏️ 名前変更</button>
+      <button onclick="deleteList('${list.id}')">🗑 リスト削除</button>
+    </div>`;
+    $('listContent').innerHTML = html;
+    initListSwipe();
+  }
+
+  function initListSwipe() {
+    document.querySelectorAll('.list-item[data-li]').forEach(card => {
+      let sx = 0, cx = 0, moved = false, sw = false;
+      card.addEventListener('touchstart', e => {
+        if (e.target.closest('.checkbox') || e.target.closest('.list-cal-btn')) return;
+        sx = e.touches[0].clientX; cx = sx; moved = false; sw = true;
+        card.style.transition = 'none';
+        document.querySelectorAll('.list-item[data-li]').forEach(c => {
+          if (c !== card) { c.style.transform = ''; const w = c.closest('.swipe-wrapper'); if (w) w.classList.remove('swiping'); }
+        });
+      }, { passive: true });
+      card.addEventListener('touchmove', e => {
+        if (!sw) return; cx = e.touches[0].clientX;
+        const d = cx - sx;
+        if (Math.abs(d) > 8) { moved = true; const w = card.closest('.swipe-wrapper'); if (w) w.classList.add('swiping'); }
+        if (!moved) return;
+        card.style.transform = `translateX(${Math.max(-144, Math.min(0, d))}px)`;
+      }, { passive: true });
+      card.addEventListener('touchend', () => {
+        if (!sw) return; sw = false; card.style.transition = 'transform 0.2s ease';
+        const wrap = card.closest('.swipe-wrapper');
+        if (!moved) { card.style.transform = ''; if (wrap) wrap.classList.remove('swiping'); return; }
+        if (cx - sx < -50) {
+          card.style.transform = 'translateX(-144px)';
+        } else {
+          card.style.transform = ''; if (wrap) wrap.classList.remove('swiping');
+        }
+      });
+    });
+  }
+
+  window.editListItem = function(listId, idx) {
+    const list = wishLists.find(l => l.id === listId);
+    if (!list || !list.items[idx]) return;
+    $('listNameTitle').textContent = 'アイテムを編集';
+    $('listNameInput').value = list.items[idx].name;
+    listNameCallback = 'editItem:' + listId + ':' + idx;
+    $('listNameModal').classList.add('show');
+    setTimeout(() => $('listNameInput').focus(), 100);
+  };
+
+  window.switchList = function(id) { activeListId = id; renderListView(); };
+
+  let listNameCallback = null;
+  let deletingListId = null;
+
+  window.addNewList = function() {
+    $('listNameTitle').textContent = '新しいリスト';
+    $('listNameInput').value = '';
+    listNameCallback = 'add';
+    $('listNameModal').classList.add('show');
+    setTimeout(() => $('listNameInput').focus(), 100);
+  };
+
+  window.renameList = function(id) {
+    const list = wishLists.find(l => l.id === id);
+    if (!list) return;
+    $('listNameTitle').textContent = 'リスト名を変更';
+    $('listNameInput').value = list.name;
+    listNameCallback = 'rename:' + id;
+    $('listNameModal').classList.add('show');
+    setTimeout(() => $('listNameInput').focus(), 100);
+  };
+
+  window.closeListNameModal = function() { $('listNameModal').classList.remove('show'); };
+  try {
+    $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
+    $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); confirmListName(); } });
+  } catch(e) { console.log('listNameModal init error:', e); }
+
+  window.confirmListName = function() {
+    const name = $('listNameInput').value.trim();
+    if (!name) return;
+    if (listNameCallback === 'add') {
+      const newList = { id: uid(), name, items: [] };
+      wishLists.push(newList);
+      activeListId = newList.id;
+    } else if (listNameCallback && listNameCallback.startsWith('rename:')) {
+      const id = listNameCallback.split(':')[1];
+      const list = wishLists.find(l => l.id === id);
+      if (list) list.name = name;
+    } else if (listNameCallback && listNameCallback.startsWith('editItem:')) {
+      const parts = listNameCallback.split(':');
+      const listId = parts[1], idx = parseInt(parts[2]);
+      const list = wishLists.find(l => l.id === listId);
+      if (list && list.items[idx]) list.items[idx].name = name;
+    }
+    saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    closeListNameModal();
+    renderListView();
+  };
+
+  window.deleteList = function(id) {
+    deletingListId = id;
+    $('listDeleteModal').classList.add('show');
+  };
+  window.closeListDelete = function() { $('listDeleteModal').classList.remove('show'); deletingListId = null; };
+  try {
+    $('listDeleteModal').addEventListener('click', e => { if (e.target === $('listDeleteModal')) closeListDelete(); });
+  } catch(e) { console.log('listDeleteModal init error:', e); }
+
+  window.confirmListDelete = function() {
+    wishLists = wishLists.filter(l => l.id !== deletingListId);
+    if (activeListId === deletingListId) activeListId = wishLists[0] ? wishLists[0].id : null;
+    saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    closeListDelete();
+    renderListView();
+  };
+
+  window.addListItem = function() {
+    const input = $('listItemInput');
+    const name = input.value.trim();
+    if (!name) return;
+    const list = wishLists.find(l => l.id === activeListId);
+    if (!list) return;
+    if (!list.items) list.items = [];
+    list.items.push({ id: uid(), name, done: false });
+    saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    input.value = '';
+    renderListView();
+    setTimeout(() => $('listItemInput').focus(), 50);
+  };
+
+  window.toggleListItem = function(listId, idx) {
+    const list = wishLists.find(l => l.id === listId);
+    if (list && list.items[idx]) {
+      list.items[idx].done = !list.items[idx].done;
+      saveLists();
+      if (currentUser) syncListsToFirebase(currentUser.uid);
+      renderListView();
+    }
+  };
+
+  window.deleteListItem = function(listId, idx) {
+    const list = wishLists.find(l => l.id === listId);
+    if (list) {
+      list.items.splice(idx, 1);
+      saveLists();
+      if (currentUser) syncListsToFirebase(currentUser.uid);
+      renderListView();
+    }
+  };
+
+  window.scheduleListItem = function(listId, idx) {
+    schedulingListId = listId;
+    schedulingItemId = idx;
+    $('listScheduleDate').value = todayStr();
+    // Populate category select
+    $('listScheduleCat').innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    $('listScheduleModal').classList.add('show');
+  };
+
+  window.closeListSchedule = function() {
+    $('listScheduleModal').classList.remove('show');
+    schedulingItemId = null;
+    schedulingListId = null;
+  };
+  try { $('listScheduleModal').addEventListener('click', e => { if (e.target === $('listScheduleModal')) closeListSchedule(); }); } catch(e) {}
+
+  window.confirmListSchedule = function() {
+    const list = wishLists.find(l => l.id === schedulingListId);
+    if (!list || !list.items[schedulingItemId]) { closeListSchedule(); return; }
+    const item = list.items[schedulingItemId];
+    const date = $('listScheduleDate').value;
+    const cat = $('listScheduleCat').value;
+    // Create task from list item
+    tasks.unshift({
+      id: uid(), name: item.name, date: date, category: cat,
+      completed: false, subtasks: [], createdAt: new Date().toISOString()
+    });
+    // Remove from list
+    list.items.splice(schedulingItemId, 1);
+    save(); saveLists();
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+    closeListSchedule();
+    renderListView();
+    showSync('✓ タスクに移動しました');
+  };
 
   selectedDate = todayStr();
   renderDayNav();
@@ -1147,7 +1913,7 @@
   // Auth UI
   window.signIn = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(err => {
+    auth.signInWithPopup(provider).then(() => {}).catch(err => {
       // Popup blocked on mobile, try redirect
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
         auth.signInWithRedirect(provider);
@@ -1159,8 +1925,125 @@
     });
   };
   window.signOut = function() {
+    calAccessToken = null; calEvents = [];
+    localStorage.removeItem(CAL_TOKEN_KEY);
+    localStorage.removeItem(CAL_EXPIRY_KEY);
     auth.signOut();
   };
+
+  const CAL_CLIENT_ID = '19435255015-1uah4hoitcjafu0it223ub3fk5a049tb.apps.googleusercontent.com';
+  const CAL_REDIRECT_URI = 'https://spiderman9448-pixel.github.io/tomo-task-manager/';
+  const CAL_EXPIRY_KEY = 'task-manager-cal-expiry';
+
+  function calTokenExpired() {
+    const expiry = localStorage.getItem(CAL_EXPIRY_KEY);
+    if (!expiry) return true;
+    return Date.now() > parseInt(expiry) - 60000; // 1分余裕を持つ
+  }
+
+  function saveCalToken(token, expiresIn) {
+    calAccessToken = token;
+    localStorage.setItem(CAL_TOKEN_KEY, token);
+    if (expiresIn) {
+      localStorage.setItem(CAL_EXPIRY_KEY, String(Date.now() + expiresIn * 1000));
+    }
+  }
+
+  // Silent token refresh using hidden iframe
+  function silentRefreshCalToken() {
+    return new Promise((resolve) => {
+      if (!auth.currentUser) { resolve(false); return; }
+      const params = new URLSearchParams({
+        client_id: CAL_CLIENT_ID,
+        redirect_uri: CAL_REDIRECT_URI,
+        response_type: 'token',
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        prompt: 'none',
+        login_hint: auth.currentUser.email
+      });
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) { resolved = true; cleanup(); resolve(false); }
+      }, 8000);
+      function cleanup() {
+        clearTimeout(timeout);
+        try { document.body.removeChild(iframe); } catch(e) {}
+      }
+      iframe.onload = function() {
+        try {
+          const hash = iframe.contentWindow.location.hash;
+          if (hash && hash.includes('access_token')) {
+            const p = new URLSearchParams(hash.substring(1));
+            const token = p.get('access_token');
+            const expiresIn = parseInt(p.get('expires_in') || '3600');
+            if (token) {
+              saveCalToken(token, expiresIn);
+              resolved = true; cleanup(); resolve(true); return;
+            }
+          }
+        } catch(e) { /* cross-origin, expected on error */ }
+        if (!resolved) { resolved = true; cleanup(); resolve(false); }
+      };
+      document.body.appendChild(iframe);
+    });
+  }
+
+  // Check for OAuth callback token in URL hash on page load
+  (function checkOAuthCallback() {
+    const hash = window.location.hash;
+    if (hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
+      const expiresIn = parseInt(params.get('expires_in') || '3600');
+      if (token) {
+        saveCalToken(token, expiresIn);
+        history.replaceState(null, '', window.location.pathname);
+        showSync('📅 カレンダー接続OK');
+      }
+    } else if (hash.includes('error=')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const err = params.get('error');
+      calAccessToken = null;
+      localStorage.removeItem(CAL_TOKEN_KEY);
+      localStorage.removeItem(CAL_EXPIRY_KEY);
+      history.replaceState(null, '', window.location.pathname);
+      if (err !== 'interaction_required' && err !== 'login_required') {
+        showSync('⚠ カレンダー接続失敗: ' + err);
+      }
+    }
+  })();
+
+  window.connectCalendar = function() {
+    if (!auth.currentUser) { showSync('⚠ 先にログインしてください'); return; }
+    const params = new URLSearchParams({
+      client_id: CAL_CLIENT_ID,
+      redirect_uri: CAL_REDIRECT_URI,
+      response_type: 'token',
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      prompt: 'consent',
+      login_hint: auth.currentUser.email
+    });
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  };
+
+  function updateCalUI() {
+    const section = document.getElementById('calSection');
+    const btn = document.getElementById('calConnectBtn');
+    if (!section) return;
+    if (currentUser) {
+      section.style.display = '';
+      btn.textContent = calAccessToken ? '✓ 接続済み' : '接続';
+      btn.style.opacity = calAccessToken ? '0.5' : '1';
+    } else {
+      section.style.display = 'none';
+    }
+  }
+
+  // Handle redirect result (mobile)
+  auth.getRedirectResult().catch(() => {});
 
   auth.onAuthStateChanged(user => {
     currentUser = user;
@@ -1170,11 +2053,17 @@
     if (user) {
       dot.classList.add('logged-in');
       dot.title = user.displayName || user.email;
+      const dotM = document.getElementById('authDotMonth');
+      if (dotM) { dotM.classList.add('logged-in'); dotM.title = dot.title; }
       authUserDisplay.innerHTML = `<img src="${user.photoURL || ''}" alt=""><span>${user.displayName || user.email}</span>`;
       authActionBtn.textContent = 'ログアウト';
       authActionBtn.onclick = signOut;
       showSync('同期中...');
       attachDBListeners(user.uid);
+      updateCalUI();
+      if (calAccessToken) {
+        fetchCalendarEvents(selectedDate || todayStr()).then(() => render());
+      }
     } else {
       dot.classList.remove('logged-in');
       dot.title = '未ログイン';
@@ -1187,6 +2076,7 @@
       if (!categories || categories.length < 5) { categories = DEFAULT_CATS; }
       memos = JSON.parse(localStorage.getItem(MEMO_KEY) || '{}');
       populateCatSelects();
+      updateCalUI();
       render();
     }
   });
@@ -1231,6 +2121,39 @@
       loadMemo();
     });
     dbListeners.push({ ref: memosRef, event: 'value', cb: memosListener });
+
+    // Lists
+    const listsRef = userRef.child('lists');
+    const listsListener = listsRef.on('value', snap => {
+      const data = snap.val();
+      if (data) {
+        wishLists = Object.values(data).map(l => ({
+          ...l,
+          items: l.items ? (Array.isArray(l.items) ? l.items : Object.values(l.items)) : []
+        }));
+      }
+      localStorage.setItem(LIST_KEY, JSON.stringify(wishLists));
+      if ($('listView').classList.contains('show')) renderListView();
+    });
+    dbListeners.push({ ref: listsRef, event: 'value', cb: listsListener });
+
+    // CalChecks
+    const calChecksRef = userRef.child('calChecks');
+    const calChecksListener = calChecksRef.on('value', snap => {
+      const data = snap.val();
+      calChecks = data || {};
+      localStorage.setItem(CAL_CHECK_KEY, JSON.stringify(calChecks));
+    });
+    dbListeners.push({ ref: calChecksRef, event: 'value', cb: calChecksListener });
+
+    // CalMemos
+    const calMemosRef = userRef.child('calMemos');
+    const calMemosListener = calMemosRef.on('value', snap => {
+      const data = snap.val();
+      calMemos = data || {};
+      localStorage.setItem(CAL_MEMO_KEY, JSON.stringify(calMemos));
+    });
+    dbListeners.push({ ref: calMemosRef, event: 'value', cb: calMemosListener });
 
     // Upload local data if cloud is empty
     tasksRef.once('value', snap => {
