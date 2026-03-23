@@ -1656,7 +1656,7 @@
     const items = list.items || [];
     let html = '<div class="list-items">';
     if (items.length === 0) {
-      html += '<div class="list-empty" onclick="document.getElementById(\'listItemInput\').focus()" style="cursor:pointer"><div class="icon">✨</div><p>アイテムがありません</p><p style="font-size:12px;color:var(--text-sub)">タップして追加</p></div>';
+      html += '<label for="listItemInput" class="list-empty" style="cursor:pointer;display:block"><div class="icon">✨</div><p>アイテムがありません</p><p style="font-size:12px;color:var(--text-sub)">タップして追加</p></label>';
     } else {
       items.forEach((item, i) => {
         html += `<div class="swipe-wrapper">
@@ -1679,7 +1679,7 @@
     }
     html += '</div>';
     html += `<div class="list-add-row">
-      <input type="text" id="listItemInput" placeholder="アイテムを追加..." onkeydown="if(event.key==='Enter'){event.preventDefault();addListItem();}">
+      <input type="text" id="listItemInput" placeholder="アイテムを追加..." oncompositionstart="window._liComp=true" oncompositionend="setTimeout(function(){window._liComp=false},300)" onkeydown="if(event.key==='Enter'&&!event.isComposing&&!window._liComp){event.preventDefault();addListItem();}">
       <button onclick="addListItem()">追加</button>
     </div>`;
     html += `<div class="list-manage-bar">
@@ -1757,7 +1757,10 @@
   window.closeListNameModal = function() { $('listNameModal').classList.remove('show'); };
   try {
     $('listNameModal').addEventListener('click', e => { if (e.target === $('listNameModal')) closeListNameModal(); });
-    $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmListName(); } });
+    let listNameComposing = false;
+    $('listNameInput').addEventListener('compositionstart', () => { listNameComposing = true; });
+    $('listNameInput').addEventListener('compositionend', () => { setTimeout(() => { listNameComposing = false; }, 300); });
+    $('listNameInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !listNameComposing) { e.preventDefault(); confirmListName(); } });
   } catch(e) { console.log('listNameModal init error:', e); }
 
   window.confirmListName = function() {
