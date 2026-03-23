@@ -119,6 +119,44 @@
     .week-day.today.selected .day-num { box-shadow: 0 0 0 2px #888; }
     .week-day.today .dow { font-weight: 700; }
 
+    /* Month calendar */
+    .month-cal { display: none; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; }
+    .month-cal.active { display: block; }
+    .week-cal.hidden { display: none; }
+    .month-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; }
+    .month-header .month-title { font-size: 18px; font-weight: 700; }
+    .month-nav { display: flex; gap: 8px; }
+    .month-nav button {
+      width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; color: var(--text-sub);
+    }
+    .month-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 8px; }
+    .month-dow-cell { text-align: center; font-size: 11px; color: var(--text-sub); font-weight: 500; padding: 4px 0; }
+    .month-dow-cell:first-child { color: var(--sun); }
+    .month-dow-cell:last-child { color: var(--sat); }
+    .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 4px 8px 12px; gap: 2px; }
+    .month-cell {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 4px 0; border-radius: 8px; cursor: pointer; min-height: 40px;
+    }
+    .month-cell:active { background: var(--bg); }
+    .month-cell .mc-num { font-size: 13px; font-weight: 600; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+    .month-cell.other-month .mc-num { color: #ccc; }
+    .month-cell.today .mc-num { background: #888; color: #fff; }
+    .month-cell.selected .mc-num { box-shadow: 0 0 0 2px var(--text-sub); }
+    .month-cell.today.selected .mc-num { box-shadow: 0 0 0 2px #888; }
+    .month-cell.sunday .mc-num { color: var(--sun); }
+    .month-cell.saturday .mc-num { color: var(--sat); }
+    .month-cell.other-month.sunday .mc-num, .month-cell.other-month.saturday .mc-num { color: #ddd; }
+    .month-cell .mc-dots { display: flex; gap: 1px; margin-top: 2px; height: 4px; }
+    .month-cell .mc-dot { width: 3px; height: 3px; border-radius: 50%; }
+    .view-toggle {
+      background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-sub);
+      padding: 2px 8px; border-radius: 6px;
+    }
+    .view-toggle:active { background: var(--bg); }
+
     /* Day navigator */
     .day-nav {
       overflow: hidden; margin-bottom: 14px; touch-action: pan-y;
@@ -479,12 +517,30 @@
         <span class="auth-dot" id="authDot" title="未ログイン"></span>
       </div>
       <div class="week-nav">
+        <button class="view-toggle" onclick="toggleCalView()" id="calViewToggle">月</button>
         <button onclick="moveWeek(-1)">&#9664;</button>
         <button onclick="moveWeek(0)">今日</button>
         <button onclick="moveWeek(1)">&#9654;</button>
       </div>
     </div>
     <div class="week-days" id="weekDays"></div>
+  </div>
+
+  <div class="month-cal" id="monthCal">
+    <div class="month-header">
+      <span class="month-title" id="monthTitle"></span>
+      <div class="month-nav">
+        <button onclick="moveMonth(-1)">&#9664;</button>
+        <button onclick="moveMonth(0)">今月</button>
+        <button onclick="moveMonth(1)">&#9654;</button>
+      </div>
+    </div>
+    <div class="month-dow-row">
+      <div class="month-dow-cell">日</div><div class="month-dow-cell">月</div><div class="month-dow-cell">火</div>
+      <div class="month-dow-cell">水</div><div class="month-dow-cell">木</div><div class="month-dow-cell">金</div>
+      <div class="month-dow-cell">土</div>
+    </div>
+    <div class="month-grid" id="monthGrid"></div>
   </div>
 
   <!-- Day swipe navigator -->
@@ -1000,6 +1056,122 @@
     nav.addEventListener('mousemove', e => { swipeMove(e.clientX); });
     nav.addEventListener('mouseup', e => { swipeEnd(e.clientX); });
     nav.addEventListener('mouseleave', e => { if (moving) swipeEnd(e.clientX); });
+  })();
+
+  // ===== Monthly Calendar =====
+  let calViewMode = 'week'; // 'week' or 'month'
+  let monthViewYear = new Date().getFullYear();
+  let monthViewMonth = new Date().getMonth();
+
+  window.toggleCalView = function() {
+    if (calViewMode === 'week') {
+      calViewMode = 'month';
+      // Set month view to selected date's month
+      const sd = selectedDate ? new Date(selectedDate + 'T00:00:00') : new Date();
+      monthViewYear = sd.getFullYear();
+      monthViewMonth = sd.getMonth();
+      document.querySelector('.week-cal').classList.add('hidden');
+      $('monthCal').classList.add('active');
+      $('calViewToggle').textContent = '週';
+      renderMonthCal();
+    } else {
+      calViewMode = 'week';
+      document.querySelector('.week-cal').classList.remove('hidden');
+      $('monthCal').classList.remove('active');
+      $('calViewToggle').textContent = '月';
+      renderWeek();
+    }
+  };
+
+  window.moveMonth = function(dir) {
+    if (dir === 0) {
+      monthViewYear = new Date().getFullYear();
+      monthViewMonth = new Date().getMonth();
+    } else {
+      monthViewMonth += dir;
+      if (monthViewMonth > 11) { monthViewMonth = 0; monthViewYear++; }
+      if (monthViewMonth < 0) { monthViewMonth = 11; monthViewYear--; }
+    }
+    renderMonthCal();
+  };
+
+  function renderMonthCal() {
+    $('monthTitle').textContent = `${monthViewYear}年${monthViewMonth + 1}月`;
+    const firstDay = new Date(monthViewYear, monthViewMonth, 1);
+    const startDow = firstDay.getDay(); // 0=Sun
+    const daysInMonth = new Date(monthViewYear, monthViewMonth + 1, 0).getDate();
+    const t = todayStr();
+    let cells = '';
+
+    // Previous month's trailing days
+    const prevDays = new Date(monthViewYear, monthViewMonth, 0).getDate();
+    for (let i = startDow - 1; i >= 0; i--) {
+      const d = new Date(monthViewYear, monthViewMonth - 1, prevDays - i);
+      const ds = toStr(d);
+      const dow = d.getDay();
+      let cls = 'month-cell other-month';
+      if (dow === 0) cls += ' sunday';
+      if (dow === 6) cls += ' saturday';
+      cells += `<div class="${cls}" onclick="selectDayFromMonth('${ds}')"><span class="mc-num">${d.getDate()}</span><div class="mc-dots"></div></div>`;
+    }
+
+    // Current month days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(monthViewYear, monthViewMonth, day);
+      const ds = toStr(d);
+      const dow = d.getDay();
+      const dayTasks = tasks.filter(tk => tk.date === ds && !tk.completed);
+      const cats = [...new Set(dayTasks.map(tk => tk.category))];
+      const dots = cats.slice(0, 3).map(cid => {
+        const c = getCat(cid);
+        return `<span class="mc-dot" style="background:${c.color}"></span>`;
+      }).join('');
+
+      let cls = 'month-cell';
+      if (ds === t) cls += ' today';
+      if (selectedDate === ds) cls += ' selected';
+      if (dow === 0 || getHoliday(ds)) cls += ' sunday';
+      if (dow === 6) cls += ' saturday';
+      cells += `<div class="${cls}" onclick="selectDayFromMonth('${ds}')"><span class="mc-num">${day}</span><div class="mc-dots">${dots}</div></div>`;
+    }
+
+    // Next month's leading days
+    const totalCells = startDow + daysInMonth;
+    const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(monthViewYear, monthViewMonth + 1, i);
+      const ds = toStr(d);
+      const dow = d.getDay();
+      let cls = 'month-cell other-month';
+      if (dow === 0) cls += ' sunday';
+      if (dow === 6) cls += ' saturday';
+      cells += `<div class="${cls}" onclick="selectDayFromMonth('${ds}')"><span class="mc-num">${i}</span><div class="mc-dots"></div></div>`;
+    }
+
+    $('monthGrid').innerHTML = cells;
+  }
+
+  window.selectDayFromMonth = function(ds) {
+    const target = new Date(ds + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    dayOffset = Math.round((target - today) / 86400000);
+    selectedDate = ds;
+    currentFilter = 'all'; updatePills();
+    renderDayNav();
+    if (calViewMode === 'month') renderMonthCal();
+    else renderWeek();
+    fetchCalendarEvents(ds).then(() => render());
+  };
+
+  // Swipe month calendar
+  (function() {
+    const el = $('monthGrid'); let sx = 0;
+    if (!el) return;
+    el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    el.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - sx;
+      if (Math.abs(dx) > 60) moveMonth(dx < 0 ? 1 : -1);
+    });
   })();
 
   window.selectDay = function(ds) {
