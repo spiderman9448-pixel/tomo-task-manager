@@ -739,13 +739,24 @@
 
   async function fetchCalendarEvents(dateStr) {
     if (!calAccessToken) { calEvents = []; return; }
+    // Check if token expired, try silent refresh first
+    if (calTokenExpired()) {
+      const ok = await silentRefreshCalToken();
+      if (!ok) { calEvents = []; updateCalUI(); return; }
+    }
     try {
       const headers = { Authorization: 'Bearer ' + calAccessToken };
       const timeMin = dateStr + 'T00:00:00+09:00';
       const timeMax = dateStr + 'T23:59:59+09:00';
       // Get all calendars
       const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers });
-      if (listRes.status === 401) { calAccessToken = null; localStorage.removeItem(CAL_TOKEN_KEY); calEvents = []; updateCalUI(); showSync('⚠ カレンダー再接続してください'); return; }
+      if (listRes.status === 401) {
+        // Try silent refresh once
+        const ok = await silentRefreshCalToken();
+        if (ok) { return fetchCalendarEvents(dateStr); }
+        calAccessToken = null; localStorage.removeItem(CAL_TOKEN_KEY); localStorage.removeItem(CAL_EXPIRY_KEY);
+        calEvents = []; updateCalUI(); showSync('⚠ カレンダー再接続してください'); return;
+      }
       if (!listRes.ok) { calEvents = []; return; }
       const listData = await listRes.json();
       const calendars = (listData.items || []).filter(c => c.selected !== false);
@@ -1916,11 +1927,69 @@
   window.signOut = function() {
     calAccessToken = null; calEvents = [];
     localStorage.removeItem(CAL_TOKEN_KEY);
+    localStorage.removeItem(CAL_EXPIRY_KEY);
     auth.signOut();
   };
 
   const CAL_CLIENT_ID = '19435255015-1uah4hoitcjafu0it223ub3fk5a049tb.apps.googleusercontent.com';
   const CAL_REDIRECT_URI = 'https://spiderman9448-pixel.github.io/tomo-task-manager/';
+  const CAL_EXPIRY_KEY = 'task-manager-cal-expiry';
+
+  function calTokenExpired() {
+    const expiry = localStorage.getItem(CAL_EXPIRY_KEY);
+    if (!expiry) return true;
+    return Date.now() > parseInt(expiry) - 60000; // 1分余裕を持つ
+  }
+
+  function saveCalToken(token, expiresIn) {
+    calAccessToken = token;
+    localStorage.setItem(CAL_TOKEN_KEY, token);
+    if (expiresIn) {
+      localStorage.setItem(CAL_EXPIRY_KEY, String(Date.now() + expiresIn * 1000));
+    }
+  }
+
+  // Silent token refresh using hidden iframe
+  function silentRefreshCalToken() {
+    return new Promise((resolve) => {
+      if (!auth.currentUser) { resolve(false); return; }
+      const params = new URLSearchParams({
+        client_id: CAL_CLIENT_ID,
+        redirect_uri: CAL_REDIRECT_URI,
+        response_type: 'token',
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        prompt: 'none',
+        login_hint: auth.currentUser.email
+      });
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) { resolved = true; cleanup(); resolve(false); }
+      }, 8000);
+      function cleanup() {
+        clearTimeout(timeout);
+        try { document.body.removeChild(iframe); } catch(e) {}
+      }
+      iframe.onload = function() {
+        try {
+          const hash = iframe.contentWindow.location.hash;
+          if (hash && hash.includes('access_token')) {
+            const p = new URLSearchParams(hash.substring(1));
+            const token = p.get('access_token');
+            const expiresIn = parseInt(p.get('expires_in') || '3600');
+            if (token) {
+              saveCalToken(token, expiresIn);
+              resolved = true; cleanup(); resolve(true); return;
+            }
+          }
+        } catch(e) { /* cross-origin, expected on error */ }
+        if (!resolved) { resolved = true; cleanup(); resolve(false); }
+      };
+      document.body.appendChild(iframe);
+    });
+  }
 
   // Check for OAuth callback token in URL hash on page load
   (function checkOAuthCallback() {
@@ -1928,9 +1997,9 @@
     if (hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
       const token = params.get('access_token');
+      const expiresIn = parseInt(params.get('expires_in') || '3600');
       if (token) {
-        calAccessToken = token;
-        localStorage.setItem(CAL_TOKEN_KEY, token);
+        saveCalToken(token, expiresIn);
         history.replaceState(null, '', window.location.pathname);
         showSync('📅 カレンダー接続OK');
       }
@@ -1939,8 +2008,11 @@
       const err = params.get('error');
       calAccessToken = null;
       localStorage.removeItem(CAL_TOKEN_KEY);
+      localStorage.removeItem(CAL_EXPIRY_KEY);
       history.replaceState(null, '', window.location.pathname);
-      showSync('⚠ カレンダー接続失敗: ' + err);
+      if (err !== 'interaction_required' && err !== 'login_required') {
+        showSync('⚠ カレンダー接続失敗: ' + err);
+      }
     }
   })();
 
