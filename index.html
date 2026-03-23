@@ -238,7 +238,7 @@
     .task-name a, .sub-name a { color: #5590c8; text-decoration: underline; word-break: break-all; }
     .task-date { font-size: 12px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
     .task-date.overdue { color: var(--accent); font-weight: 600; }
-    .cal-desc { font-size: 13px; color: var(--text-sub); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); line-height: 1.5; word-break: break-word; }
+    .cal-desc-preview { font-size: 12px; color: var(--text-sub); margin-top: 4px; line-height: 1.4; word-break: break-word; }
     .cal-memo-edit-btn { display: inline-block; margin-top: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--text); }
     .cal-memo-edit-btn:active { background: var(--border); }
     .subtask-count { font-size: 11px; color: var(--text-sub); }
@@ -728,27 +728,19 @@
     const checked = calChecks[ev.id];
     const timeLabel = ev.allDay ? '終日' : `${ev.startTime}〜${ev.endTime}`;
     const hasDesc = ev.description && ev.description.trim();
-    const descHtml = `<div class="cal-desc" style="display:none">
-      ${hasDesc ? linkify(ev.description.replace(/\n/g, '<br>')) : '<span style="color:var(--text-sub);font-style:italic">メモなし</span>'}
-      <button class="cal-memo-edit-btn" onclick="event.stopPropagation(); openCalMemoEdit('${ev.calendarId}','${ev.id}')">&#9998; メモを編集</button>
-    </div>`;
+    const descPreview = hasDesc ? `<div class="cal-desc-preview">${escapeHtml(ev.description.split('\n')[0]).substring(0, 60)}${ev.description.length > 60 ? '...' : ''}</div>` : '';
     return `
-      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="toggleCalDesc(this)">
+      <div class="task-card ${checked ? 'completed' : ''}" style="border-left-color:#4285f4" onclick="openCalMemoEdit('${ev.calendarId}','${ev.id}')">
         <div class="checkbox ${checked ? 'completed' : ''}" onclick="event.stopPropagation(); toggleCalCheck('${ev.id}')" style="${checked ? 'background:#4285f4;border-color:#4285f4' : ''}"></div>
         <div class="task-info">
           <div class="task-name-row">
-            <span class="task-name">${escapeHtml(ev.name)}${hasDesc ? ' <span style="font-size:11px;color:var(--text-sub)">📝</span>' : ''}</span>
+            <span class="task-name">${escapeHtml(ev.name)}</span>
             <span class="task-date" style="color:#4285f4">${timeLabel}</span>
           </div>
-          ${descHtml}
+          ${descPreview}
         </div>
       </div>`;
   }
-  window.toggleCalDesc = function(card) {
-    const desc = card.querySelector('.cal-desc');
-    if (!desc) return;
-    desc.style.display = desc.style.display === 'none' ? 'block' : 'none';
-  };
   window.openCalMemoEdit = function(calId, eventId) {
     const ev = calEvents.find(e => e.id === eventId);
     $('calMemoText').value = ev ? ev.description : '';
@@ -759,7 +751,6 @@
   };
   window.closeCalMemo = function() { $('calMemoModal').classList.remove('show'); };
   window.saveCalMemo = async function() {
-    alert('保存ボタン押された！ token=' + (calAccessToken ? 'あり' : 'なし'));
     const calId = $('calMemoModal').dataset.calId;
     const eventId = $('calMemoModal').dataset.eventId;
     const desc = $('calMemoText').value;
