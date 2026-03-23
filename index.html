@@ -789,7 +789,7 @@
   let tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]');
   let categories = JSON.parse(localStorage.getItem(CAT_KEY) || 'null');
   if (!categories || categories.length < 5) { categories = DEFAULT_CATS; saveCats(); }
-  let currentFilter = 'all', selectedDate = null, weekOffset = 0, editingId = null;
+  let currentFilter = 'all', selectedDate = todayStr(), weekOffset = 0, editingId = null;
   const openSubtasks = new Set();
 
   const $ = id => document.getElementById(id);
@@ -1819,8 +1819,8 @@
       showSync('同期中...');
       attachDBListeners(user.uid);
       updateCalUI();
-      if (calAccessToken && selectedDate) {
-        fetchCalendarEvents(selectedDate).then(() => render());
+      if (calAccessToken) {
+        fetchCalendarEvents(selectedDate || todayStr()).then(() => render());
       }
     } else {
       dot.classList.remove('logged-in');
