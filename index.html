@@ -604,7 +604,7 @@
 <!-- Calendar Memo Edit Modal -->
 <div class="modal-overlay" id="calMemoModal" style="z-index:300" onclick="if(event.target===this)closeCalMemo()">
   <div class="modal" onclick="event.stopPropagation()">
-    <h2>📝 メモを編集</h2>
+    <h2>✏️ メモを編集</h2>
     <textarea id="calMemoText" rows="4" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:16px;font-family:inherit;resize:vertical;min-height:80px;box-sizing:border-box"></textarea>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-cancel" onclick="closeCalMemo()">キャンセル</button>
@@ -675,7 +675,7 @@
   }
 
   async function fetchCalendarEvents(dateStr) {
-    if (!calAccessToken) { calEvents = []; return; }
+    if (!calAccessToken) { calEvents = []; console.log('CAL: no token'); return; }
     try {
       const headers = { Authorization: 'Bearer ' + calAccessToken };
       const timeMin = dateStr + 'T00:00:00+09:00';
@@ -1762,12 +1762,16 @@
         localStorage.setItem(CAL_TOKEN_KEY, token);
         history.replaceState(null, '', window.location.pathname);
         showSync('📅 カレンダー接続OK');
+        // Fetch events after token set
+        if (selectedDate) fetchCalendarEvents(selectedDate).then(() => render());
       }
     } else if (hash.includes('error=')) {
-      // Silent re-auth failed, clear token
+      const params = new URLSearchParams(hash.substring(1));
+      const err = params.get('error');
       calAccessToken = null;
       localStorage.removeItem(CAL_TOKEN_KEY);
       history.replaceState(null, '', window.location.pathname);
+      showSync('⚠ カレンダー接続失敗: ' + err);
     }
   })();
 
