@@ -1754,6 +1754,7 @@
   // Check for OAuth callback token in URL hash on page load
   (function checkOAuthCallback() {
     const hash = window.location.hash;
+    document.title = 'T:' + (calAccessToken ? 'あり' : 'なし') + ' H:' + (hash ? hash.substring(0,30) : 'なし');
     if (hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
       const token = params.get('access_token');
@@ -1761,10 +1762,7 @@
         calAccessToken = token;
         localStorage.setItem(CAL_TOKEN_KEY, token);
         history.replaceState(null, '', window.location.pathname);
-        showSync('📅 カレンダー接続OK');
-        // Fetch events after token set
-        const ds = selectedDate || todayStr();
-        fetchCalendarEvents(ds).then(() => render());
+        document.title = 'CAL:接続OK token取得済み';
       }
     } else if (hash.includes('error=')) {
       const params = new URLSearchParams(hash.substring(1));
@@ -1772,7 +1770,7 @@
       calAccessToken = null;
       localStorage.removeItem(CAL_TOKEN_KEY);
       history.replaceState(null, '', window.location.pathname);
-      showSync('⚠ カレンダー接続失敗: ' + err);
+      document.title = 'CAL:エラー ' + err;
     }
   })();
 
