@@ -1656,7 +1656,7 @@
     const items = list.items || [];
     let html = '<div class="list-items">';
     if (items.length === 0) {
-      html += '<div class="list-empty"><div class="icon">✨</div><p>アイテムがありません</p></div>';
+      html += '<div class="list-empty" onclick="document.getElementById(\'listItemInput\').focus()" style="cursor:pointer"><div class="icon">✨</div><p>アイテムがありません</p><p style="font-size:12px;color:var(--text-sub)">タップして追加</p></div>';
     } else {
       items.forEach((item, i) => {
         html += `<div class="swipe-wrapper">
