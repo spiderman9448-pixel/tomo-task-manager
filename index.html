@@ -418,9 +418,22 @@
     .list-swipe-wrapper { position: relative; overflow: hidden; border-radius: var(--radius); }
     .list-swipe-actions {
       position: absolute; top: 0; bottom: 0; right: 0;
-      display: flex; visibility: hidden;
+      display: flex; visibility: hidden; z-index: 1;
     }
     .list-swipe-wrapper.swiping .list-swipe-actions { visibility: visible; }
+    .list-item { position: relative; z-index: 2; }
+    .list-item-hover-actions {
+      display: none; gap: 4px; margin-left: auto; flex-shrink: 0;
+    }
+    .list-item-hover-actions button {
+      width: 30px; height: 30px; border: none; border-radius: 6px;
+      background: transparent; cursor: pointer; font-size: 14px;
+      color: var(--text-sub); display: flex; align-items: center; justify-content: center;
+    }
+    .list-item-hover-actions button:hover { background: var(--bg); }
+    @media (hover: hover) {
+      .list-swipe-wrapper:hover .list-item-hover-actions { display: flex; }
+    }
     .list-add-row {
       display: flex; gap: 8px; margin-top: 12px;
     }
@@ -1425,6 +1438,11 @@
           <div class="list-item ${item.done ? 'done' : ''}" data-li="${i}">
             <div class="checkbox" onclick="toggleListItem('${list.id}',${i})"></div>
             <span class="list-item-name">${linkify(item.name)}</span>
+            <div class="list-item-hover-actions">
+              <button onclick="scheduleListItem('${list.id}',${i})" title="日付を設定">📅</button>
+              <button onclick="editListItem('${list.id}',${i})" title="編集">✏️</button>
+              <button onclick="deleteListItem('${list.id}',${i})" title="削除">✕</button>
+            </div>
           </div>
         </div>`;
       });
