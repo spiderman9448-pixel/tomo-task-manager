@@ -356,6 +356,7 @@
     .empty-state .icon { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
     .empty-state p { font-size: 14px; }
     .empty-state .hint { font-size: 11px; margin-top: 6px; opacity: 0.6; }
+    .tap-to-add { min-height: 150px; cursor: pointer; }
 
     /* Wish Lists */
     .lists-btn {
@@ -502,6 +503,7 @@
 
   <div class="stats-inline" id="statsInline"></div>
   <div id="taskList"></div>
+  <div class="tap-to-add" onclick="openAddModal()"></div>
 </div>
 
 <!-- FAB -->
@@ -1368,7 +1370,10 @@
   let schedulingItemId = null;
   let schedulingListId = null;
 
-  function saveLists() { localStorage.setItem(LIST_KEY, JSON.stringify(wishLists)); }
+  function saveLists() {
+    localStorage.setItem(LIST_KEY, JSON.stringify(wishLists));
+    if (currentUser) syncListsToFirebase(currentUser.uid);
+  }
 
   function syncListsToFirebase(uid) {
     if (!uid) return;
@@ -1753,7 +1758,10 @@
     const listsListener = listsRef.on('value', snap => {
       const data = snap.val();
       if (data) {
-        wishLists = Object.values(data);
+        wishLists = Object.values(data).map(l => ({
+          ...l,
+          items: l.items ? (Array.isArray(l.items) ? l.items : Object.values(l.items)) : []
+        }));
       }
       localStorage.setItem(LIST_KEY, JSON.stringify(wishLists));
       if ($('listView').classList.contains('show')) renderListView();
