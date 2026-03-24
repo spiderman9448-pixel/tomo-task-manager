@@ -1077,22 +1077,25 @@ function generateManual() {
   }
   cursor += gap; // Initial gap after breakfast
 
+  let lunchInserted = false, dinnerInserted = false;
+
   for (let i = 0; i < sorted.length; i++) {
     const t = sorted[i];
 
-    // Insert lunch if it's time (prep 20min + eat 40min = 60min)
-    if (needLunch && cursor <= lunchStart && cursor + t.duration > lunchStart) {
-      schedule.push({ name: '🍚 昼食準備+昼食', duration: 60, priority: '', start: lunchStart, isBreak: true });
-      cursor = lunchStart + 60;
-    } else if (needLunch && cursor >= lunchStart - 30 && cursor <= lunchStart + 30 && !schedule.find(s => s.name === '🍚 昼食準備+昼食')) {
-      schedule.push({ name: '🍚 昼食準備+昼食', duration: 60, priority: '', start: cursor, isBreak: true });
-      cursor += 60;
+    // Insert lunch: when cursor reaches 11:30+ or task would overlap 12:00
+    if (needLunch && !lunchInserted && (cursor >= lunchStart - 30 || cursor + t.duration > lunchStart)) {
+      const lunchAt = Math.max(cursor, lunchStart);
+      schedule.push({ name: '🍚 昼食準備+昼食', duration: 60, priority: '', start: lunchAt, isBreak: true });
+      cursor = lunchAt + 60;
+      lunchInserted = true;
     }
 
-    // Insert dinner if it's time (prep 30min + eat 30min = 60min)
-    if (needDinner && cursor >= dinnerStart - 30 && cursor <= dinnerStart + 30 && !schedule.find(s => s.name === '🌙 夕食準備+夕食')) {
-      schedule.push({ name: '🌙 夕食準備+夕食', duration: 60, priority: '', start: cursor, isBreak: true });
-      cursor += 60;
+    // Insert dinner: when cursor reaches 18:00+ or task would overlap 18:30
+    if (needDinner && !dinnerInserted && (cursor >= dinnerStart - 30 || cursor + t.duration > dinnerStart)) {
+      const dinnerAt = Math.max(cursor, dinnerStart);
+      schedule.push({ name: '🌙 夕食準備+夕食', duration: 60, priority: '', start: dinnerAt, isBreak: true });
+      cursor = dinnerAt + 60;
+      dinnerInserted = true;
     }
 
     if (cursor + t.duration > sleep) break;
