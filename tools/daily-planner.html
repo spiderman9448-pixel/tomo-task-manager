@@ -213,13 +213,13 @@ body {
 }
 .timeline { position: relative; }
 .timeline-item {
-  display: flex; gap: 12px; margin-bottom: 2px; position: relative;
+  display: flex; gap: 6px; margin-bottom: 2px; position: relative;
   cursor: grab; user-select: none;
 }
 .timeline-item.dragging { opacity: 0.4; }
 .timeline-item.drag-over { border-top: 2px solid var(--accent); margin-top: -2px; }
 .timeline-time {
-  width: 55px; text-align: right; font-size: 13px;
+  width: 44px; text-align: right; font-size: 13px; font-weight: 600;
   color: var(--text-sub); padding-top: 10px; flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
@@ -235,16 +235,17 @@ body {
 .timeline-card .priority-dot.high { background: var(--high); }
 .timeline-card .priority-dot.mid { background: var(--mid); }
 .timeline-card .priority-dot.low { background: var(--low); }
-.timeline-card .tl-name { flex: 1; font-size: 14px; }
+.timeline-card .tl-name { flex: 1; font-size: 15px; font-weight: 600; }
 .timeline-card .tl-duration {
   font-size: 11px; color: var(--text-sub);
   background: var(--bg); padding: 2px 6px; border-radius: 4px;
 }
 .timeline-card.break-card {
-  background: var(--break-bg); border-style: dashed;
-  min-height: 32px;
+  background: transparent; border: none; box-shadow: none;
+  min-height: 24px; padding: 4px 14px;
 }
-.timeline-card.break-card .tl-name { color: var(--text-sub); font-size: 12px; }
+.timeline-card.break-card .tl-name { color: var(--text-sub); font-size: 11px; }
+.timeline-card.break-card .tl-duration { background: transparent; }
 .timeline-card .tl-motivation {
   display: block; font-size: 11px; color: var(--accent); margin-top: 2px;
   line-height: 1.4;
@@ -260,6 +261,21 @@ body {
 }
 .timeline-card.done { opacity: 0.45; }
 .timeline-card.done .tl-name { text-decoration: line-through; }
+.timeline-now {
+  display: flex; align-items: center; gap: 6px;
+  margin: 4px 0; z-index: 10;
+}
+.timeline-now .now-time {
+  width: 44px; text-align: right; font-size: 11px; font-weight: 700;
+  color: var(--high); flex-shrink: 0;
+}
+.timeline-now .now-line {
+  flex: 1; height: 2px; background: var(--high);
+}
+.timeline-now .now-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--high); flex-shrink: 0; margin-left: -4px;
+}
 .timeline-end {
   display: flex; gap: 12px; margin-top: 2px;
 }
@@ -405,9 +421,15 @@ body {
 }
 
 @media (max-width: 600px) {
-  .container { padding: 12px; }
+  .container { padding: 10px; }
   .input-row input[type="text"] { font-size: 16px; }
   .time-range input[type="time"] { font-size: 16px; }
+  .timeline-card { padding: 8px 10px; gap: 6px; }
+  .timeline-card .tl-check { width: 18px; height: 18px; }
+  .timeline-card .type-icon { font-size: 11px; }
+  .timeline-card .tl-name { font-size: 15px; }
+  .timeline-card .tl-motivation { font-size: 10px; }
+  .timeline-end { gap: 6px; }
 }
 </style>
 </head>
@@ -1037,30 +1059,39 @@ function generateManual() {
     gap = Math.floor(extraTime / slots);
   }
 
-  // Add lunch break if time range covers 12:00
+  // Meal times (prep + eating)
+  const breakfastStart = wake; // 起床直後
   const lunchStart = 12 * 60; // 12:00
   const dinnerStart = 18 * 60 + 30; // 18:30
+  const needBreakfast = wake < 10 * 60; // 10時前起床なら朝食あり
   const needLunch = wake < lunchStart && sleep > lunchStart + 60;
   const needDinner = wake < dinnerStart && sleep > dinnerStart + 60;
 
   schedule = [];
-  let cursor = wake + gap; // Start with initial gap
+  let cursor = wake;
+
+  // Insert breakfast (prep 15min + eat 15min = 30min)
+  if (needBreakfast) {
+    schedule.push({ name: '☀️ 朝食準備+朝食', duration: 30, priority: '', start: cursor, isBreak: true });
+    cursor += 30;
+  }
+  cursor += gap; // Initial gap after breakfast
 
   for (let i = 0; i < sorted.length; i++) {
     const t = sorted[i];
 
-    // Insert lunch if it's time
+    // Insert lunch if it's time (prep 20min + eat 40min = 60min)
     if (needLunch && cursor <= lunchStart && cursor + t.duration > lunchStart) {
-      schedule.push({ name: '昼食', duration: 60, priority: '', start: lunchStart, isBreak: true });
+      schedule.push({ name: '🍚 昼食準備+昼食', duration: 60, priority: '', start: lunchStart, isBreak: true });
       cursor = lunchStart + 60;
-    } else if (needLunch && cursor >= lunchStart - 30 && cursor <= lunchStart + 30 && !schedule.find(s => s.name === '昼食')) {
-      schedule.push({ name: '昼食', duration: 60, priority: '', start: cursor, isBreak: true });
+    } else if (needLunch && cursor >= lunchStart - 30 && cursor <= lunchStart + 30 && !schedule.find(s => s.name === '🍚 昼食準備+昼食')) {
+      schedule.push({ name: '🍚 昼食準備+昼食', duration: 60, priority: '', start: cursor, isBreak: true });
       cursor += 60;
     }
 
-    // Insert dinner if it's time
-    if (needDinner && cursor >= dinnerStart - 30 && cursor <= dinnerStart + 30 && !schedule.find(s => s.name === '夕食')) {
-      schedule.push({ name: '夕食', duration: 60, priority: '', start: cursor, isBreak: true });
+    // Insert dinner if it's time (prep 30min + eat 30min = 60min)
+    if (needDinner && cursor >= dinnerStart - 30 && cursor <= dinnerStart + 30 && !schedule.find(s => s.name === '🌙 夕食準備+夕食')) {
+      schedule.push({ name: '🌙 夕食準備+夕食', duration: 60, priority: '', start: cursor, isBreak: true });
       cursor += 60;
     }
 
@@ -1118,7 +1149,8 @@ async function generateAI() {
   ).join('\n');
 
   const prompt = `タスクを最適な時間に配置して。起床${wake}〜就寝${sleep}。
-ルール:午前=軽め(中),午後=重要(高),夜=楽しみ(低)。活動と座りを交互。休憩10分を挟む。昼食12:00,夕食18:30。所要時間は変えない。
+ルール:午前=軽め(中),午後=重要(高),夜=楽しみ(低)。活動と座りを交互。休憩10分を挟む。
+食事も入れて:朝食準備+朝食(起床後30分),昼食準備+昼食(12:00頃60分),夕食準備+夕食(18:30頃60分)。所要時間は変えない。
 
 タスク(名前|分|優先度|タイプ):
 ${taskShort}
@@ -1254,9 +1286,26 @@ function renderSchedule() {
   }
   section.style.display = 'block';
 
-  el.innerHTML = schedule.map((item, i) => {
+  // Current time in minutes
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  let nowInserted = false;
+
+  let html = '';
+  for (let i = 0; i < schedule.length; i++) {
+    const item = schedule[i];
+    // Insert "now" line before this item if current time is before this item's start
+    if (!nowInserted && nowMins < item.start) {
+      html += `<div class="timeline-now"><span class="now-time">${formatTime(nowMins)}</span><div class="now-dot"></div><div class="now-line"></div></div>`;
+      nowInserted = true;
+    }
+    // Insert "now" line during this item (between start and end)
+    if (!nowInserted && nowMins >= item.start && nowMins < item.start + item.duration) {
+      // Render item first, then now line after
+    }
+
     const mot = !item.isBreak ? getMotivation(item, i) : '';
-    return `
+    html += `
     <div class="timeline-item"
          draggable="${!item.isBreak}"
          data-idx="${i}"
@@ -1279,17 +1328,32 @@ function renderSchedule() {
         <span class="tl-duration">${item.duration}分</span>
       </div>
     </div>`;
-  }).join('');
+
+    // Insert now line after current item if time falls within it
+    if (!nowInserted && nowMins >= item.start && nowMins < item.start + item.duration) {
+      html += `<div class="timeline-now"><span class="now-time">${formatTime(nowMins)}</span><div class="now-dot"></div><div class="now-line"></div></div>`;
+      nowInserted = true;
+    }
+  }
+
+  // Now line after all items
+  if (!nowInserted && schedule.length) {
+    const last = schedule[schedule.length - 1];
+    if (nowMins <= last.start + last.duration + 60) {
+      html += `<div class="timeline-now"><span class="now-time">${formatTime(nowMins)}</span><div class="now-dot"></div><div class="now-line"></div></div>`;
+    }
+  }
 
   // End time
   if (schedule.length) {
     const last = schedule[schedule.length - 1];
-    el.innerHTML += `
+    html += `
       <div class="timeline-end">
         <div class="timeline-time">${formatTime(last.start + last.duration)}</div>
         <div class="end-label">終了</div>
       </div>`;
   }
+  el.innerHTML = html;
 }
 
 // ── Drag & Drop (Desktop) ──
