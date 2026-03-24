@@ -1171,8 +1171,9 @@ async function generateAI() {
   ).join('\n');
 
   const prompt = `タスクを最適な時間に配置して。起床${wake}〜就寝${sleep}。
-ルール:午前=軽め(中),午後=重要(高),夜=楽しみ(低)。活動と座りを交互。休憩10分を挟む。
-食事も入れて:朝食準備+朝食(起床後30分),昼食準備+昼食(12:00頃60分),夕食準備+夕食(18:30頃60分)。所要時間は変えない。
+ルール:午前=軽め(中),午後=重要(高),夜=楽しみ(低)。活動と座りを交互。
+食事:朝食(起床後30分),昼食(12:00頃60分),夕食(18:30頃60分)を入れて。
+休憩はタスクの間に1つだけ(10分)。連続して休憩を入れない。就寝は入れない。所要時間は変えない。
 
 タスク(名前|分|優先度|タイプ):
 ${taskShort}
@@ -1182,9 +1183,10 @@ NOTE:一言コメント
 HH:MM|名前|分|priority|type|break
 例:
 NOTE:バランスよく配置しました
-07:00|掃除機|15|mid|active|0
-07:15|休憩|10|||1
-07:25|デュオリンゴ|15|high|sit|0
+07:00|朝食|30|||1
+07:30|掃除機|15|mid|active|0
+07:45|休憩|10|||1
+07:55|デュオリンゴ|15|high|sit|0
 12:00|昼食|60|||1`;
 
   try {
@@ -1229,14 +1231,20 @@ NOTE:バランスよく配置しました
     const aiNote = noteMatch ? noteMatch.slice(5).trim() : '';
     const parsed = [];
     const seenNames = new Set();
+    let lastWasBreak = false;
     for (const line of lines) {
       const m = line.match(/^(\d{1,2}:\d{2})\|(.+?)\|(\d+)\|([^|]*)\|([^|]*)\|([01])$/);
       if (!m) continue;
       const isBreak = m[6] === '1';
       const name = m[2];
+      // Skip 就寝/起床 entries from AI
+      if (/就寝|起床/.test(name)) continue;
+      // Skip consecutive breaks
+      if (isBreak && !/朝食|昼食|夕食/.test(name) && lastWasBreak) continue;
       // Skip duplicate non-break tasks
       if (!isBreak && seenNames.has(name)) continue;
       if (!isBreak) seenNames.add(name);
+      lastWasBreak = isBreak;
       parsed.push({
         start: parseTime(m[1]),
         name,
