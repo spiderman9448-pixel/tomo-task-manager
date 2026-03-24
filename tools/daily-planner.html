@@ -1383,42 +1383,58 @@ function onDrop(e, idx) {
   dragIdx = -1;
 }
 
-// ── Touch Drag (Mobile) ──
+// ── Touch Drag (Mobile) - Long press to activate ──
 let touchDragIdx = -1;
 let touchStartY = 0;
-let touchClone = null;
+let touchLongPressTimer = null;
+let touchDragActive = false;
 function onTouchStart(e, idx) {
   if (schedule[idx].isBreak) return;
   touchDragIdx = idx;
   touchStartY = e.touches[0].clientY;
+  touchDragActive = false;
+  // Start long press timer (500ms)
+  touchLongPressTimer = setTimeout(() => {
+    touchDragActive = true;
+    const el = e.currentTarget || document.querySelector(`.timeline-item[data-idx="${idx}"]`);
+    if (el) el.classList.add('dragging');
+    // Haptic feedback if available
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, 500);
 }
 function onTouchMove(e, idx) {
   if (touchDragIdx < 0) return;
   const dy = Math.abs(e.touches[0].clientY - touchStartY);
-  if (dy > 10) {
-    e.preventDefault();
-    if (!touchClone) {
-      const el = e.currentTarget;
-      el.classList.add('dragging');
-    }
-    // Highlight drop target
-    const touch = e.touches[0];
-    const items = document.querySelectorAll('.timeline-item');
-    items.forEach(item => item.classList.remove('drag-over'));
-    for (const item of items) {
-      const rect = item.getBoundingClientRect();
-      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-        const targetIdx = parseInt(item.dataset.idx);
-        if (targetIdx !== touchDragIdx && !schedule[targetIdx].isBreak) {
-          item.classList.add('drag-over');
-        }
-        break;
+  // Cancel long press if moved before activation
+  if (!touchDragActive && dy > 10) {
+    clearTimeout(touchLongPressTimer);
+    touchDragIdx = -1;
+    return;
+  }
+  if (!touchDragActive) return;
+  e.preventDefault();
+  // Highlight drop target
+  const touch = e.touches[0];
+  const items = document.querySelectorAll('.timeline-item');
+  items.forEach(item => item.classList.remove('drag-over'));
+  for (const item of items) {
+    const rect = item.getBoundingClientRect();
+    if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+      const targetIdx = parseInt(item.dataset.idx);
+      if (targetIdx !== touchDragIdx && !schedule[targetIdx].isBreak) {
+        item.classList.add('drag-over');
       }
+      break;
     }
   }
 }
 function onTouchEnd(e, idx) {
-  if (touchDragIdx < 0) return;
+  clearTimeout(touchLongPressTimer);
+  if (touchDragIdx < 0 || !touchDragActive) {
+    touchDragIdx = -1;
+    touchDragActive = false;
+    return;
+  }
   document.querySelectorAll('.timeline-item').forEach(el => {
     el.classList.remove('dragging','drag-over');
   });
@@ -1436,7 +1452,7 @@ function onTouchEnd(e, idx) {
     }
   }
   touchDragIdx = -1;
-  touchClone = null;
+  touchDragActive = false;
 }
 
 function reorderSchedule(fromIdx, toIdx) {
