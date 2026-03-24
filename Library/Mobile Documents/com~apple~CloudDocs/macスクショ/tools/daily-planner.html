@@ -696,6 +696,7 @@ function loadTemplate(type) {
   let added = 0;
   for (const t of newTasks) {
     if (!existingNames.has(t.name)) {
+      existingNames.add(t.name);
       tasks.push({ id: Date.now() + added, ...t });
       added++;
     }
@@ -894,6 +895,10 @@ function addTask(e) {
   e.preventDefault();
   const name = document.getElementById('taskNameInput').value.trim();
   if (!name) return false;
+  if (tasks.some(t => t.name === name)) {
+    alert('同じ名前のタスクがあります');
+    return false;
+  }
   tasks.push({ id: Date.now(), name, duration: 60, priority: 'mid', type: 'active' });
   document.getElementById('taskNameInput').value = '';
   renderTasks();
