@@ -1,0 +1,22 @@
+{
+  "name": "デイリープランナー",
+  "short_name": "プランナー",
+  "description": "1日のスケジュールをバランスよく組むツール",
+  "start_url": "./daily-planner.html",
+  "display": "standalone",
+  "background_color": "#edecea",
+  "theme_color": "#f0887d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./planner-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./planner-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
