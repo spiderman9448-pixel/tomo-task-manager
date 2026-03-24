@@ -164,12 +164,12 @@ body {
   border-color: transparent; color: #fff;
 }
 .task-edit-box .type-select .t-opt[data-t="active"].active { background: #27ae60; }
-.task-edit-box .type-select .t-opt[data-t="sit"].active { background: #8e44ad; }
+.task-edit-box .type-select .t-opt[data-t="sit"].active { background: #3b82f6; }
 .task-item .type-badge {
   font-size: 10px; padding: 1px 5px; border-radius: 4px; color: #fff;
 }
 .task-item .type-badge.active { background: #27ae60; }
-.task-item .type-badge.sit { background: #8e44ad; }
+.task-item .type-badge.sit { background: #3b82f6; }
 .timeline-card .type-icon { font-size: 12px; flex-shrink: 0; }
 .task-edit-actions button {
   border: none; border-radius: 8px; padding: 10px 18px;
@@ -249,6 +249,17 @@ body {
   display: block; font-size: 11px; color: var(--accent); margin-top: 2px;
   line-height: 1.4;
 }
+.timeline-card .tl-check {
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-radius: 5px; flex-shrink: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; background: var(--surface);
+}
+.timeline-card .tl-check.checked {
+  background: #27ae60; border-color: #27ae60; color: #fff;
+}
+.timeline-card.done { opacity: 0.45; }
+.timeline-card.done .tl-name { text-decoration: line-through; }
 .timeline-end {
   display: flex; gap: 12px; margin-top: 2px;
 }
@@ -344,7 +355,54 @@ body {
 }
 .tmpl-btn:active { transform: scale(0.97); }
 .tmpl-btn.holiday { border-color: #e0d4f5; background: #faf5ff; }
+.tmpl-btn.suggest { border-color: #fde68a; background: #fffbeb; font-weight: 600; }
 .tmpl-btn.loaded { opacity: 0.5; }
+
+/* Suggest Popup */
+.suggest-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3); display: none; z-index: 150;
+  align-items: center; justify-content: center;
+}
+.suggest-overlay.show { display: flex; }
+.suggest-box {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 20px; width: 320px; max-height: 80vh; overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.suggest-box h3 { font-size: 16px; margin-bottom: 6px; }
+.suggest-box .suggest-subtitle {
+  font-size: 12px; color: var(--text-sub); margin-bottom: 14px; line-height: 1.5;
+}
+.suggest-box .balance-bar {
+  display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.suggest-box .balance-tag {
+  font-size: 11px; padding: 3px 8px; border-radius: 6px;
+  background: var(--bg); color: var(--text-sub);
+}
+.suggest-box .balance-tag.warn { background: #fef3c7; color: #92400e; }
+.suggest-box .balance-tag.good { background: #d1fae5; color: #065f46; }
+.suggest-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 6px; cursor: pointer; transition: all 0.15s;
+}
+.suggest-item:active { transform: scale(0.98); }
+.suggest-item .s-icon { font-size: 16px; }
+.suggest-item .s-info { flex: 1; }
+.suggest-item .s-name { font-size: 14px; display: block; }
+.suggest-item .s-reason { font-size: 11px; color: var(--text-sub); }
+.suggest-item .s-add {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 6px; padding: 4px 10px; font-size: 12px;
+  cursor: pointer; font-family: inherit;
+}
+.suggest-close {
+  display: block; width: 100%; margin-top: 10px; padding: 10px;
+  background: var(--bg); border: none; border-radius: 8px;
+  font-size: 14px; cursor: pointer; font-family: inherit; color: var(--text);
+}
 
 @media (max-width: 600px) {
   .container { padding: 12px; }
@@ -380,6 +438,8 @@ body {
       <button class="tmpl-btn" onclick="loadTemplate('daily')">📋 毎日ルーティン</button>
       <button class="tmpl-btn" onclick="loadTemplate('weekly')">📅 今日の週一タスク</button>
       <button class="tmpl-btn holiday" onclick="loadTemplate('holiday')">🏖 休みの日</button>
+      <button class="tmpl-btn" onclick="loadTemplate('monthly')">🗓 今日の月1掃除</button>
+      <button class="tmpl-btn suggest" onclick="showSuggest()">💡 迷ったらこれ</button>
     </div>
   </div>
 
@@ -414,6 +474,17 @@ body {
   </div>
 </div>
 
+<!-- Suggest Popup -->
+<div class="suggest-overlay" id="suggestOverlay" onclick="if(event.target===this)closeSuggest()">
+  <div class="suggest-box">
+    <h3>💡 今日のおすすめ</h3>
+    <div class="suggest-subtitle" id="suggestSubtitle"></div>
+    <div class="balance-bar" id="balanceBar"></div>
+    <div id="suggestList"></div>
+    <button class="suggest-close" onclick="closeSuggest()">閉じる</button>
+  </div>
+</div>
+
 <!-- Task Edit Modal -->
 <div class="task-edit-overlay" id="taskEditOverlay" onclick="if(event.target===this)closeTaskEdit()">
   <div class="task-edit-box">
@@ -430,7 +501,7 @@ body {
       <label>タイプ</label>
       <div class="type-select">
         <div class="t-opt" data-t="active" onclick="setEditType('active')">🏃 活動</div>
-        <div class="t-opt active" data-t="sit" onclick="setEditType('sit')">🪑 座り</div>
+        <div class="t-opt active" data-t="sit" onclick="setEditType('sit')">📖 座り</div>
       </div>
     </div>
     <div class="field">
@@ -538,6 +609,23 @@ const TEMPLATES = {
     { name: '副業のことをやる', duration: 60, priority: 'high', type: 'sit' },
     { name: '韓国語（デュオリンゴ以外）', duration: 30, priority: 'high', type: 'sit' },
   ],
+  monthly: [
+    { name: '浴室サッシの掃除', duration: 20, priority: 'mid', type: 'active' },
+    { name: '浴室天井のブリーチ', duration: 15, priority: 'mid', type: 'active' },
+    { name: '家具の扉を拭く', duration: 15, priority: 'mid', type: 'active' },
+    { name: 'カーテンレールの上を拭く', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'インターホンの掃除', duration: 10, priority: 'mid', type: 'active' },
+    { name: '料理本を見に行く', duration: 30, priority: 'low', type: 'active' },
+    { name: 'ドアの水拭き', duration: 15, priority: 'mid', type: 'active' },
+    { name: '照明の埃とり', duration: 15, priority: 'mid', type: 'active' },
+    { name: 'スイッチを拭く', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'キッチンスポンジを交換', duration: 5, priority: 'mid', type: 'active' },
+    { name: '冷蔵庫の上を拭く', duration: 10, priority: 'mid', type: 'active' },
+    { name: '冷蔵庫出して拭く', duration: 20, priority: 'mid', type: 'active' },
+    { name: '冷蔵庫の隙間の埃とり', duration: 10, priority: 'mid', type: 'active' },
+    { name: '洋服を1セット購入する', duration: 60, priority: 'low', type: 'active' },
+    { name: '洋服を2セット処分する', duration: 20, priority: 'mid', type: 'active' },
+  ],
 };
 
 function loadTemplate(type) {
@@ -550,6 +638,13 @@ function loadTemplate(type) {
     if (!newTasks.length) { alert('今日の週一タスクはありません'); return; }
   } else if (type === 'holiday') {
     newTasks = TEMPLATES.holiday;
+  } else if (type === 'monthly') {
+    // Pick 2 tasks based on day of month (rotates through the list)
+    const dom = new Date().getDate();
+    const list = TEMPLATES.monthly;
+    const idx1 = (dom * 2 - 2) % list.length;
+    const idx2 = (dom * 2 - 1) % list.length;
+    newTasks = [list[idx1], list[idx2]];
   }
 
   // Add only tasks not already in the list (by name)
@@ -569,6 +664,136 @@ function loadTemplate(type) {
 
   renderTasks();
   saveState();
+}
+
+// ── Suggest ──
+function showSuggest() {
+  const existingNames = new Set(tasks.map(t => t.name));
+  const activeCount = tasks.filter(t => t.type === 'active').length;
+  const sitCount = tasks.filter(t => t.type !== 'active').length;
+  const totalDur = tasks.reduce((s, t) => s + t.duration, 0);
+  const highCount = tasks.filter(t => t.priority === 'high').length;
+  const lowCount = tasks.filter(t => t.priority === 'low').length;
+
+  // Balance analysis
+  const bars = [];
+  const activeRatio = tasks.length ? activeCount / tasks.length : 0;
+  if (activeRatio < 0.3) bars.push({ text: '活動が少なめ', warn: true });
+  else if (activeRatio > 0.7) bars.push({ text: '座りが少なめ', warn: true });
+  else bars.push({ text: '活動/座りバランス◎', warn: false });
+
+  if (highCount === 0) bars.push({ text: '重要タスクがない', warn: true });
+  else bars.push({ text: '重要タスクあり◎', warn: false });
+
+  if (lowCount === 0) bars.push({ text: 'お楽しみがない', warn: true });
+  else bars.push({ text: 'お楽しみあり◎', warn: false });
+
+  if (totalDur > 480) bars.push({ text: `合計${totalDur}分 (詰めすぎ?)`, warn: true });
+  else bars.push({ text: `合計${totalDur}分`, warn: false });
+
+  document.getElementById('balanceBar').innerHTML = bars.map(b =>
+    `<span class="balance-tag ${b.warn ? 'warn' : 'good'}">${b.text}</span>`
+  ).join('');
+
+  // Build suggestions
+  const suggestions = [];
+  const dow = new Date().getDay();
+
+  // Check missing daily tasks
+  const missingDaily = TEMPLATES.daily.filter(t => !existingNames.has(t.name));
+  // Check missing weekly tasks
+  const missingWeekly = (TEMPLATES.weekly[dow] || []).filter(t => !existingNames.has(t.name));
+  // Check missing holiday tasks
+  const missingHoliday = TEMPLATES.holiday.filter(t => !existingNames.has(t.name));
+
+  // Prioritize suggestions based on balance
+  const addedNames = new Set();
+  function addSugg(t, reason) {
+    if (addedNames.has(t.name)) return;
+    addedNames.add(t.name);
+    suggestions.push({ ...t, reason });
+  }
+
+  if (activeRatio > 0.7) {
+    [...missingDaily, ...missingWeekly, ...missingHoliday].filter(t => t.type !== 'active')
+      .forEach(t => addSugg(t, '座って集中する時間も大事'));
+  }
+  if (activeRatio < 0.3) {
+    [...missingDaily, ...missingWeekly, ...missingHoliday].filter(t => t.type === 'active')
+      .forEach(t => addSugg(t, '体を動かそう！'));
+  }
+  if (highCount === 0) {
+    [...missingDaily, ...missingWeekly, ...missingHoliday].filter(t => t.priority === 'high')
+      .forEach(t => addSugg(t, '今日の重要タスクとして'));
+  }
+  if (lowCount === 0) {
+    missingHoliday.filter(t => t.priority === 'low')
+      .forEach(t => addSugg(t, '自分へのご褒美に'));
+  }
+
+  // Add remaining missing weekly tasks
+  missingWeekly.forEach(t => addSugg(t, '今日の曜日タスク'));
+  // Add missing daily tasks
+  missingDaily.forEach(t => addSugg(t, '毎日のルーティン'));
+
+  // Add monthly tasks not yet done
+  const dom = new Date().getDate();
+  const mIdx1 = (dom * 2 - 2) % TEMPLATES.monthly.length;
+  const mIdx2 = (dom * 2 - 1) % TEMPLATES.monthly.length;
+  [TEMPLATES.monthly[mIdx1], TEMPLATES.monthly[mIdx2]]
+    .filter(t => !existingNames.has(t.name))
+    .forEach(t => addSugg(t, '今日の月1掃除'));
+
+  // Add some fun suggestions if nothing else
+  if (suggestions.length === 0) {
+    const extras = [
+      { name: '散歩に行く', duration: 30, priority: 'low', type: 'active', reason: 'リフレッシュに' },
+      { name: '読書', duration: 30, priority: 'low', type: 'sit', reason: '自分の時間を楽しんで' },
+      { name: 'ストレッチ', duration: 15, priority: 'mid', type: 'active', reason: '体をほぐそう' },
+      { name: '好きな音楽を聴く', duration: 20, priority: 'low', type: 'sit', reason: '気分転換に' },
+    ];
+    extras.filter(t => !existingNames.has(t.name)).forEach(t => suggestions.push(t));
+  }
+
+  // Limit to top 5
+  const top = suggestions.slice(0, 5);
+
+  const subtitle = tasks.length === 0
+    ? 'まだタスクがありません。まずはテンプレートから追加してみましょう！'
+    : `今日は${tasks.length}個のタスク（${totalDur}分）。バランスを見ておすすめを提案します。`;
+
+  document.getElementById('suggestSubtitle').textContent = subtitle;
+  document.getElementById('suggestList').innerHTML = top.length
+    ? top.map((t, i) => `
+      <div class="suggest-item" onclick="addSuggestion(${i})">
+        <span class="s-icon">${t.type === 'active' ? '🏃' : '📖'}</span>
+        <div class="s-info">
+          <span class="s-name">${esc(t.name)}</span>
+          <span class="s-reason">${esc(t.reason)} · ${t.duration}分</span>
+        </div>
+        <button class="s-add">追加</button>
+      </div>`).join('')
+    : '<p style="text-align:center;color:var(--text-sub);font-size:13px;padding:16px;">全部やってる！すごい！</p>';
+
+  window._suggestions = top;
+  document.getElementById('suggestOverlay').classList.add('show');
+}
+
+function addSuggestion(idx) {
+  const t = window._suggestions[idx];
+  if (!t) return;
+  const existingNames = new Set(tasks.map(t => t.name));
+  if (existingNames.has(t.name)) return;
+  tasks.push({ id: Date.now(), name: t.name, duration: t.duration, priority: t.priority, type: t.type });
+  renderTasks();
+  saveState();
+  // Remove from list
+  const el = document.querySelectorAll('.suggest-item')[idx];
+  if (el) { el.style.opacity = '0.3'; el.style.pointerEvents = 'none'; }
+}
+
+function closeSuggest() {
+  document.getElementById('suggestOverlay').classList.remove('show');
 }
 
 // ── Init ──
@@ -618,7 +843,7 @@ function addTask(e) {
   e.preventDefault();
   const name = document.getElementById('taskNameInput').value.trim();
   if (!name) return false;
-  tasks.push({ id: Date.now(), name, duration: 60, priority: 'mid', type: 'sit' });
+  tasks.push({ id: Date.now(), name, duration: 60, priority: 'mid', type: 'active' });
   document.getElementById('taskNameInput').value = '';
   renderTasks();
   saveState();
@@ -690,7 +915,7 @@ function renderTasks() {
       <div class="priority-dot ${t.priority}"></div>
       <span class="task-name">${esc(t.name)}</span>
       <div class="task-meta">
-        <span class="type-badge ${t.type || 'sit'}">${t.type === 'active' ? '🏃' : '🪑'}</span>
+        <span class="type-badge ${t.type || 'sit'}">${t.type === 'active' ? '🏃' : '📖'}</span>
         <span class="task-time">${t.duration}分</span>
         <span class="task-priority-label ${t.priority}">${priorityLabels[t.priority]}</span>
       </div>
@@ -970,8 +1195,9 @@ function renderSchedule() {
          ontouchmove="onTouchMove(event,${i})"
          ontouchend="onTouchEnd(event,${i})">
       <div class="timeline-time" onclick="openTimeEdit(${i})">${formatTime(item.start)}</div>
-      <div class="timeline-card${item.isBreak ? ' break-card' : ''}">
-        ${!item.isBreak ? `<span class="type-icon">${item.type === 'active' ? '🏃' : '🪑'}</span>` : ''}
+      <div class="timeline-card${item.isBreak ? ' break-card' : ''}${item.done ? ' done' : ''}">
+        ${!item.isBreak ? `<div class="tl-check${item.done ? ' checked' : ''}" onclick="toggleDone(${i}, event)">${item.done ? '✓' : ''}</div>` : ''}
+        ${!item.isBreak ? `<span class="type-icon">${item.type === 'active' ? '🏃' : '📖'}</span>` : ''}
         ${item.priority ? `<div class="priority-dot ${item.priority}"></div>` : ''}
         <div style="flex:1">
           <span class="tl-name">${esc(item.name)}</span>
@@ -1122,6 +1348,14 @@ function reorderSchedule(fromIdx, toIdx) {
     }
   }
 
+  renderSchedule();
+  saveState();
+}
+
+// ── Check Done ──
+function toggleDone(idx, e) {
+  e.stopPropagation();
+  schedule[idx].done = !schedule[idx].done;
   renderSchedule();
   saveState();
 }
