@@ -1240,11 +1240,11 @@ NOTE:バランスよく配置しました
       const isBreak = m[6] === '1';
       const name = m[2];
       // 就寝/起床 are allowed
-      // Skip consecutive breaks
+      // Skip consecutive breaks (but not meals)
       if (isBreak && !/朝食|昼食|夕食/.test(name) && lastWasBreak) continue;
-      // Skip duplicate non-break tasks
-      if (!isBreak && seenNames.has(name)) continue;
-      if (!isBreak) seenNames.add(name);
+      // Skip duplicate tasks AND duplicate meals
+      if (seenNames.has(name)) continue;
+      if (!isBreak || /朝食|昼食|夕食/.test(name)) seenNames.add(name);
       lastWasBreak = isBreak;
       parsed.push({
         start: parseTime(m[1]),
