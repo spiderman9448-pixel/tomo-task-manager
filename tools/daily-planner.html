@@ -330,6 +330,22 @@ body {
   font-size: 13px; color: var(--text); line-height: 1.6;
 }
 
+/* Template Buttons */
+.template-section { margin-bottom: 12px; }
+.template-btns {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.tmpl-btn {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; font-size: 12px; cursor: pointer;
+  font-family: inherit; background: var(--surface);
+  color: var(--text); box-shadow: var(--shadow);
+  transition: all 0.15s;
+}
+.tmpl-btn:active { transform: scale(0.97); }
+.tmpl-btn.holiday { border-color: #e0d4f5; background: #faf5ff; }
+.tmpl-btn.loaded { opacity: 0.5; }
+
 @media (max-width: 600px) {
   .container { padding: 12px; }
   .input-row input[type="text"] { font-size: 16px; }
@@ -356,6 +372,15 @@ body {
     <span class="sep">〜</span>
     <label>就寝</label>
     <input type="time" id="sleepTime" value="23:00">
+  </div>
+
+  <!-- Template Buttons -->
+  <div class="template-section">
+    <div class="template-btns">
+      <button class="tmpl-btn" onclick="loadTemplate('daily')">📋 毎日ルーティン</button>
+      <button class="tmpl-btn" onclick="loadTemplate('weekly')">📅 今日の週一タスク</button>
+      <button class="tmpl-btn holiday" onclick="loadTemplate('holiday')">🏖 休みの日</button>
+    </div>
   </div>
 
   <!-- Task Input -->
@@ -457,6 +482,94 @@ let editingScheduleIdx = -1;
 let editingTaskId = -1;
 let editPriority = 'mid';
 let editType = 'sit';
+
+// ── Templates ──
+const TEMPLATES = {
+  daily: [
+    // 毎日やりたい掃除
+    { name: '掃除機', duration: 15, priority: 'mid', type: 'active' },
+    { name: 'コンロを拭く', duration: 5, priority: 'mid', type: 'active' },
+    { name: '床を拭く', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'トイレ掃除', duration: 10, priority: 'mid', type: 'active' },
+    { name: '洗濯', duration: 10, priority: 'mid', type: 'active' },
+    { name: '洗面所の床', duration: 5, priority: 'mid', type: 'active' },
+    { name: '洗面台洗う', duration: 5, priority: 'mid', type: 'active' },
+    // 運動
+    { name: 'プランク', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'フォームローラー', duration: 10, priority: 'mid', type: 'active' },
+    // 勉強
+    { name: 'デュオリンゴ', duration: 15, priority: 'high', type: 'sit' },
+    { name: 'フリック', duration: 10, priority: 'high', type: 'sit' },
+  ],
+  // 曜日別の週一タスク (0=日, 1=月, ..., 6=土)
+  weekly: {
+    0: [ // 日
+      { name: '顎と鼻のピーリング', duration: 15, priority: 'mid', type: 'sit' },
+      { name: '顔と鼻毛を剃る', duration: 15, priority: 'mid', type: 'sit' },
+    ],
+    1: [ // 月
+      { name: '冷蔵庫から料理', duration: 60, priority: 'mid', type: 'active' },
+      { name: '在庫チェック', duration: 15, priority: 'mid', type: 'sit' },
+    ],
+    2: [ // 火
+      { name: 'トイレカバーを洗う', duration: 10, priority: 'mid', type: 'active' },
+      { name: 'お風呂掃除', duration: 20, priority: 'mid', type: 'active' },
+    ],
+    3: [ // 水
+      { name: 'クローゼットから1つ処分', duration: 15, priority: 'mid', type: 'active' },
+      { name: '扉の中から1つ処分', duration: 15, priority: 'mid', type: 'active' },
+    ],
+    4: [ // 木
+      { name: 'シーツを変える', duration: 15, priority: 'mid', type: 'active' },
+      { name: 'ガスコンロを洗う', duration: 15, priority: 'mid', type: 'active' },
+    ],
+    5: [ // 金
+      { name: '扉を拭く', duration: 10, priority: 'mid', type: 'active' },
+      { name: '玄関掃除', duration: 15, priority: 'mid', type: 'active' },
+    ],
+    6: [ // 土
+      { name: '鏡を綺麗に拭く', duration: 10, priority: 'mid', type: 'active' },
+      { name: '垢すり', duration: 20, priority: 'mid', type: 'active' },
+    ],
+  },
+  holiday: [
+    { name: 'ジムに行く', duration: 90, priority: 'high', type: 'active' },
+    { name: '自分を磨くことをやる', duration: 60, priority: 'low', type: 'sit' },
+    { name: '副業のことをやる', duration: 60, priority: 'high', type: 'sit' },
+    { name: '韓国語（デュオリンゴ以外）', duration: 30, priority: 'high', type: 'sit' },
+  ],
+};
+
+function loadTemplate(type) {
+  let newTasks = [];
+  if (type === 'daily') {
+    newTasks = TEMPLATES.daily;
+  } else if (type === 'weekly') {
+    const dow = new Date().getDay();
+    newTasks = TEMPLATES.weekly[dow] || [];
+    if (!newTasks.length) { alert('今日の週一タスクはありません'); return; }
+  } else if (type === 'holiday') {
+    newTasks = TEMPLATES.holiday;
+  }
+
+  // Add only tasks not already in the list (by name)
+  const existingNames = new Set(tasks.map(t => t.name));
+  let added = 0;
+  for (const t of newTasks) {
+    if (!existingNames.has(t.name)) {
+      tasks.push({ id: Date.now() + added, ...t });
+      added++;
+    }
+  }
+
+  if (added === 0) {
+    alert('すべて追加済みです');
+    return;
+  }
+
+  renderTasks();
+  saveState();
+}
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', () => {
