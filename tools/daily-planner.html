@@ -696,6 +696,7 @@ function loadTemplate(type) {
   let added = 0;
   for (const t of newTasks) {
     if (!existingNames.has(t.name)) {
+      existingNames.add(t.name);
       tasks.push({ id: Date.now() + added, ...t });
       added++;
     }
@@ -894,6 +895,10 @@ function addTask(e) {
   e.preventDefault();
   const name = document.getElementById('taskNameInput').value.trim();
   if (!name) return false;
+  if (tasks.some(t => t.name === name)) {
+    alert('同じ名前のタスクがあります');
+    return false;
+  }
   tasks.push({ id: Date.now(), name, duration: 60, priority: 'mid', type: 'active' });
   document.getElementById('taskNameInput').value = '';
   renderTasks();
@@ -1108,32 +1113,25 @@ async function generateAI() {
     `- ${t.name}（${t.duration}分、優先度:${t.priority === 'high' ? '高' : t.priority === 'mid' ? '中' : '低'}、タイプ:${t.type === 'active' ? '活動' : '座り'}）`
   ).join('\n');
 
-  const prompt = `あなたはスケジュール管理の専門家です。以下のタスクを最適な順番と時間に配置してください。
+  const taskShort = tasks.map(t =>
+    `${t.name}|${t.duration}|${t.priority}|${t.type}`
+  ).join('\n');
 
-起床時間: ${wake}
-就寝時間: ${sleep}
+  const prompt = `タスクを最適な時間に配置して。起床${wake}〜就寝${sleep}。
+ルール:午前=軽め(中),午後=重要(高),夜=楽しみ(低)。活動と座りを交互。休憩10分を挟む。昼食12:00,夕食18:30。所要時間は変えない。
 
-タスク一覧:
-${taskDesc}
+タスク(名前|分|優先度|タイプ):
+${taskShort}
 
-以下のルールに従ってください:
-- 午前中は掃除やルーティンなど軽めのタスク（優先度「中」）を配置
-- 昼食後〜夕方は重要なタスク（優先度「高」）をメインに配置
-- 夜はお楽しみや軽いタスク（優先度「低」）を配置
-- 1日を通してバランスよく配置し、タスクを上から詰めないこと
-- 「活動」タスクと「座り」タスクを交互に配置し、ずっと座り続けないようにする
-- 適度に休憩（10分程度）を挟む
-- 食事の時間も考慮する（昼12:00頃、夜18:30頃）
-- 各タスクの所要時間は変えない
-
-必ず以下のJSON形式のみで返答してください（他のテキストは不要）:
-{
-  "note": "スケジュールの簡単な説明（1〜2文）",
-  "items": [
-    {"name": "タスク名", "start": "HH:MM", "duration": 分数, "priority": "high/mid/low", "type": "active/sit", "isBreak": false},
-    {"name": "昼食", "start": "12:00", "duration": 60, "priority": "", "type": "", "isBreak": true}
-  ]
-}`;
+以下の形式で1行1アイテム、他のテキスト不要:
+NOTE:一言コメント
+HH:MM|名前|分|priority|type|break
+例:
+NOTE:バランスよく配置しました
+07:00|掃除機|15|mid|active|0
+07:15|休憩|10|||1
+07:25|デュオリンゴ|15|high|sit|0
+12:00|昼食|60|||1`;
 
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -1146,7 +1144,7 @@ ${taskDesc}
         model: 'llama-3.3-70b-versatile',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
-        max_tokens: 1024
+        max_tokens: 4096
       })
     });
 
@@ -1155,27 +1153,51 @@ ${taskDesc}
       throw new Error(err.error?.message || `API error: ${res.status}`);
     }
 
-    const data = await res.json();
+    const rawText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch(jsonErr) {
+      // API response itself is truncated - try to extract content
+      const contentMatch = rawText.match(/"content"\s*:\s*"([\s\S]*?)(?:"|$)/);
+      if (contentMatch) {
+        data = { choices: [{ message: { content: contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') } }] };
+      } else {
+        throw new Error('APIレスポンスの読み取りに失敗しました');
+      }
+    }
     const text = data.choices?.[0]?.message?.content;
     if (!text) throw new Error('AIの応答が空でした');
 
-    // Parse JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AIの応答を解析できませんでした');
-
-    const result = JSON.parse(jsonMatch[0]);
-    schedule = result.items.map(item => ({
-      name: item.name,
-      duration: item.duration,
-      priority: item.priority || '',
-      type: item.type || '',
-      start: parseTime(item.start),
-      isBreak: item.isBreak || false
-    }));
+    // Parse line-based response: HH:MM|name|duration|priority|type|break
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    const noteMatch = lines.find(l => l.startsWith('NOTE:'));
+    const aiNote = noteMatch ? noteMatch.slice(5).trim() : '';
+    const parsed = [];
+    const seenNames = new Set();
+    for (const line of lines) {
+      const m = line.match(/^(\d{1,2}:\d{2})\|(.+?)\|(\d+)\|([^|]*)\|([^|]*)\|([01])$/);
+      if (!m) continue;
+      const isBreak = m[6] === '1';
+      const name = m[2];
+      // Skip duplicate non-break tasks
+      if (!isBreak && seenNames.has(name)) continue;
+      if (!isBreak) seenNames.add(name);
+      parsed.push({
+        start: parseTime(m[1]),
+        name,
+        duration: parseInt(m[3]),
+        priority: m[4] || '',
+        type: m[5] || '',
+        isBreak
+      });
+    }
+    if (!parsed.length) throw new Error('AIの応答を解析できませんでした。もう一度お試しください。');
+    schedule = parsed;
 
     const noteEl = document.getElementById('aiNote');
-    if (result.note) {
-      noteEl.textContent = result.note;
+    if (aiNote) {
+      noteEl.textContent = aiNote;
       noteEl.style.display = 'block';
     } else {
       noteEl.style.display = 'none';
