@@ -439,6 +439,7 @@ body {
       <button class="tmpl-btn" onclick="loadTemplate('weekly')">📅 今日の週一タスク</button>
       <button class="tmpl-btn holiday" onclick="loadTemplate('holiday')">🏖 休みの日</button>
       <button class="tmpl-btn" onclick="loadTemplate('monthly')">🗓 今日の月1掃除</button>
+      <button class="tmpl-btn" onclick="loadTemplate('danshari')">🗑 今日の断捨離</button>
       <button class="tmpl-btn suggest" onclick="showSuggest()">💡 迷ったらこれ</button>
     </div>
   </div>
@@ -609,6 +610,42 @@ const TEMPLATES = {
     { name: '副業のことをやる', duration: 60, priority: 'high', type: 'sit' },
     { name: '韓国語（デュオリンゴ以外）', duration: 30, priority: 'high', type: 'sit' },
   ],
+  danshari: [
+    // キッチン
+    { name: '冷蔵庫の期限切れを捨てる', duration: 10, priority: 'mid', type: 'active' },
+    { name: '調味料の賞味期限チェック', duration: 10, priority: 'mid', type: 'active' },
+    { name: '使ってないキッチンツール1つ処分', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'タッパー・保存容器の整理', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'レジ袋・紙袋を5枚減らす', duration: 5, priority: 'mid', type: 'active' },
+    // クローゼット
+    { name: '1年着てない服を1着処分', duration: 10, priority: 'mid', type: 'active' },
+    { name: '靴下・下着で古いもの1つ処分', duration: 5, priority: 'mid', type: 'active' },
+    { name: 'ハンガーが足りない=服が多い→1着減', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'タオルで古いもの1枚処分', duration: 5, priority: 'mid', type: 'active' },
+    { name: 'カバンの中身を全部出して整理', duration: 15, priority: 'mid', type: 'active' },
+    // 洗面所・バスルーム
+    { name: '使いかけのコスメ1つ処分', duration: 5, priority: 'mid', type: 'active' },
+    { name: 'サンプル・試供品を使うか捨てる', duration: 10, priority: 'mid', type: 'active' },
+    { name: '薬箱の期限切れチェック', duration: 10, priority: 'mid', type: 'active' },
+    // リビング・その他
+    { name: '本棚から1冊処分（売る/あげる）', duration: 10, priority: 'mid', type: 'active' },
+    { name: '引き出し1つの中身を全部出して整理', duration: 15, priority: 'mid', type: 'active' },
+    { name: 'DMやチラシを全部捨てる', duration: 5, priority: 'mid', type: 'active' },
+    { name: 'ケーブル・充電器で使ってないもの処分', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'スマホの未使用アプリ3つ削除', duration: 5, priority: 'mid', type: 'sit' },
+    { name: 'メールの受信トレイを10件整理', duration: 10, priority: 'mid', type: 'sit' },
+    { name: '写真フォルダのスクショ10枚削除', duration: 5, priority: 'mid', type: 'sit' },
+    { name: 'ポイントカード・会員証の整理', duration: 10, priority: 'mid', type: 'sit' },
+    { name: '財布の中のレシートを全部捨てる', duration: 5, priority: 'mid', type: 'active' },
+    { name: '玄関の靴を1足処分', duration: 5, priority: 'mid', type: 'active' },
+    { name: 'ベッド下・ソファ下のものを整理', duration: 15, priority: 'mid', type: 'active' },
+    { name: '文房具で書けないペンを捨てる', duration: 5, priority: 'mid', type: 'active' },
+    { name: 'もらいもので使ってないもの1つ処分', duration: 10, priority: 'mid', type: 'active' },
+    { name: '「いつか使う」箱から1つ判断', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'サブスクを1つ見直す', duration: 10, priority: 'mid', type: 'sit' },
+    { name: '冷凍庫の奥のものチェック', duration: 10, priority: 'mid', type: 'active' },
+    { name: 'シンク下の収納を整理', duration: 15, priority: 'mid', type: 'active' },
+  ],
   monthly: [
     { name: '浴室サッシの掃除', duration: 20, priority: 'mid', type: 'active' },
     { name: '浴室天井のブリーチ', duration: 15, priority: 'mid', type: 'active' },
@@ -644,6 +681,13 @@ function loadTemplate(type) {
     const list = TEMPLATES.monthly;
     const idx1 = (dom * 2 - 2) % list.length;
     const idx2 = (dom * 2 - 1) % list.length;
+    newTasks = [list[idx1], list[idx2]];
+  } else if (type === 'danshari') {
+    // Pick 2 decluttering tasks based on day of month
+    const dom = new Date().getDate();
+    const list = TEMPLATES.danshari;
+    const idx1 = (dom * 2) % list.length;
+    const idx2 = (dom * 2 + 1) % list.length;
     newTasks = [list[idx1], list[idx2]];
   }
 
@@ -743,6 +787,13 @@ function showSuggest() {
   [TEMPLATES.monthly[mIdx1], TEMPLATES.monthly[mIdx2]]
     .filter(t => !existingNames.has(t.name))
     .forEach(t => addSugg(t, '今日の月1掃除'));
+
+  // Add today's danshari
+  const dIdx1 = (dom * 2) % TEMPLATES.danshari.length;
+  const dIdx2 = (dom * 2 + 1) % TEMPLATES.danshari.length;
+  [TEMPLATES.danshari[dIdx1], TEMPLATES.danshari[dIdx2]]
+    .filter(t => !existingNames.has(t.name))
+    .forEach(t => addSugg(t, '今日の断捨離'));
 
   // Add some fun suggestions if nothing else
   if (suggestions.length === 0) {
