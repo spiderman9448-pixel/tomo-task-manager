@@ -1239,8 +1239,7 @@ NOTE:バランスよく配置しました
       if (!m) continue;
       const isBreak = m[6] === '1';
       const name = m[2];
-      // Skip 就寝/起床 entries from AI
-      if (/就寝|起床/.test(name)) continue;
+      // 就寝/起床 are allowed
       // Skip consecutive breaks
       if (isBreak && !/朝食|昼食|夕食/.test(name) && lastWasBreak) continue;
       // Skip duplicate non-break tasks
