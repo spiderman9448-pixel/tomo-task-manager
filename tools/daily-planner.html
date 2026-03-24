@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>デイリープランナー</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #edecea;
+  --surface: #fff;
+  --text: #2d2d2d;
+  --text-sub: #999;
+  --border: #ebebeb;
+  --primary: #666;
+  --primary-hover: #555;
+  --accent: #f0887d;
+  --accent-bg: #fff5f4;
+  --radius: 14px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.04);
+  --high: #e74c3c;
+  --mid: #f39c12;
+  --low: #3498db;
+  --break-bg: #f7f7f5;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  padding-bottom: 100px;
+  overflow-x: hidden;
+}
+.container { max-width: 500px; margin: 0 auto; padding: 16px; }
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.header h1 { font-size: 20px; font-weight: 700; }
+.header .date { font-size: 13px; color: var(--text-sub); margin-left: 8px; }
+.settings-btn {
+  background: none; border: none; font-size: 22px; cursor: pointer;
+  color: var(--text-sub); padding: 4px;
+}
+
+/* Time Range */
+.time-range {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border-radius: var(--radius);
+  padding: 12px 16px; margin-bottom: 16px;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+.time-range label { font-size: 13px; color: var(--text-sub); white-space: nowrap; }
+.time-range input[type="time"] {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; font-size: 15px; font-family: inherit;
+  color: var(--text); background: var(--bg); width: 100px;
+}
+.time-range .sep { color: var(--text-sub); font-size: 16px; }
+
+/* Task Input */
+.input-section {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 16px;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+}
+.input-section h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+.input-row {
+  display: flex; gap: 8px; margin-bottom: 8px; align-items: center;
+}
+.input-row input[type="text"] {
+  flex: 1; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; font-size: 15px; font-family: inherit;
+  color: var(--text); background: var(--bg);
+}
+.input-row input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.add-btn {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 8px; padding: 10px 16px; font-size: 14px;
+  cursor: pointer; font-family: inherit; font-weight: 600;
+  white-space: nowrap;
+}
+.add-btn:active { transform: scale(0.97); }
+
+/* Task List */
+.task-list { margin-bottom: 16px; }
+.task-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 6px;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  position: relative; cursor: pointer;
+}
+.task-item:active { background: #f8f8f6; }
+.task-item .priority-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.task-item .priority-dot.high { background: var(--high); }
+.task-item .priority-dot.mid { background: var(--mid); }
+.task-item .priority-dot.low { background: var(--low); }
+.task-item .task-name { flex: 1; font-size: 14px; }
+.task-item .task-meta {
+  display: flex; align-items: center; gap: 6px;
+}
+.task-item .task-time { font-size: 12px; color: var(--text-sub); white-space: nowrap; }
+.task-item .task-priority-label {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px; color: #fff;
+}
+.task-item .task-priority-label.high { background: var(--high); }
+.task-item .task-priority-label.mid { background: var(--mid); }
+.task-item .task-priority-label.low { background: var(--low); }
+.task-item .delete-btn {
+  background: none; border: none; color: var(--text-sub);
+  font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.task-item .delete-btn:hover { color: var(--high); }
+
+/* Task Edit Modal */
+.task-edit-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3); display: none; z-index: 150;
+  align-items: center; justify-content: center;
+}
+.task-edit-overlay.show { display: flex; }
+.task-edit-box {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 20px; width: 300px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.task-edit-box h3 { font-size: 16px; margin-bottom: 14px; }
+.task-edit-box .field { margin-bottom: 14px; }
+.task-edit-box .field label {
+  display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 4px;
+}
+.task-edit-box .field input[type="text"],
+.task-edit-box .field input[type="number"] {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; font-size: 15px; font-family: inherit; color: var(--text);
+}
+.task-edit-box .field input:focus { outline: none; border-color: var(--accent); }
+.task-edit-box .priority-select { display: flex; gap: 6px; }
+.task-edit-box .priority-select .p-opt {
+  flex: 1; border: 2px solid var(--border); border-radius: 8px;
+  padding: 8px; text-align: center; font-size: 13px; cursor: pointer;
+  font-family: inherit; background: var(--surface); color: var(--text-sub);
+  transition: all 0.15s;
+}
+.task-edit-box .priority-select .p-opt.active {
+  color: #fff; border-color: transparent;
+}
+.task-edit-box .priority-select .p-opt[data-p="high"].active { background: var(--high); }
+.task-edit-box .priority-select .p-opt[data-p="mid"].active { background: var(--mid); }
+.task-edit-box .priority-select .p-opt[data-p="low"].active { background: var(--low); }
+.task-edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.task-edit-box .type-select { display: flex; gap: 6px; }
+.task-edit-box .type-select .t-opt {
+  flex: 1; border: 2px solid var(--border); border-radius: 8px;
+  padding: 8px; text-align: center; font-size: 13px; cursor: pointer;
+  font-family: inherit; background: var(--surface); color: var(--text-sub);
+  transition: all 0.15s;
+}
+.task-edit-box .type-select .t-opt.active {
+  border-color: transparent; color: #fff;
+}
+.task-edit-box .type-select .t-opt[data-t="active"].active { background: #27ae60; }
+.task-edit-box .type-select .t-opt[data-t="sit"].active { background: #8e44ad; }
+.task-item .type-badge {
+  font-size: 10px; padding: 1px 5px; border-radius: 4px; color: #fff;
+}
+.task-item .type-badge.active { background: #27ae60; }
+.task-item .type-badge.sit { background: #8e44ad; }
+.timeline-card .type-icon { font-size: 12px; flex-shrink: 0; }
+.task-edit-actions button {
+  border: none; border-radius: 8px; padding: 10px 18px;
+  font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.task-edit-actions .btn-cancel { background: var(--bg); color: var(--text); }
+.task-edit-actions .btn-save { background: var(--accent); color: #fff; }
+
+/* Generate Buttons */
+.gen-buttons {
+  display: flex; gap: 8px; margin-bottom: 20px;
+}
+.gen-btn {
+  flex: 1; border: none; border-radius: var(--radius);
+  padding: 14px; font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.gen-btn:active { transform: scale(0.97); }
+.gen-btn.manual {
+  background: var(--primary); color: #fff;
+}
+.gen-btn.ai {
+  background: linear-gradient(135deg, #d97706, #ea580c);
+  color: #fff;
+}
+.gen-btn:disabled {
+  opacity: 0.5; cursor: not-allowed; transform: none;
+}
+
+/* Schedule Result */
+.schedule-section { margin-bottom: 20px; }
+.schedule-section h2 {
+  font-size: 15px; font-weight: 600; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.schedule-section h2 .clear-btn {
+  font-size: 12px; color: var(--text-sub); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 2px 8px; cursor: pointer; font-family: inherit;
+}
+.timeline { position: relative; }
+.timeline-item {
+  display: flex; gap: 12px; margin-bottom: 2px; position: relative;
+  cursor: grab; user-select: none;
+}
+.timeline-item.dragging { opacity: 0.4; }
+.timeline-item.drag-over { border-top: 2px solid var(--accent); margin-top: -2px; }
+.timeline-time {
+  width: 55px; text-align: right; font-size: 13px;
+  color: var(--text-sub); padding-top: 10px; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-card {
+  flex: 1; background: var(--surface); border-radius: 10px;
+  padding: 10px 14px; border: 1px solid var(--border);
+  box-shadow: var(--shadow); position: relative;
+  min-height: 44px; display: flex; align-items: center; gap: 8px;
+}
+.timeline-card .priority-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.timeline-card .priority-dot.high { background: var(--high); }
+.timeline-card .priority-dot.mid { background: var(--mid); }
+.timeline-card .priority-dot.low { background: var(--low); }
+.timeline-card .tl-name { flex: 1; font-size: 14px; }
+.timeline-card .tl-duration {
+  font-size: 11px; color: var(--text-sub);
+  background: var(--bg); padding: 2px 6px; border-radius: 4px;
+}
+.timeline-card.break-card {
+  background: var(--break-bg); border-style: dashed;
+  min-height: 32px;
+}
+.timeline-card.break-card .tl-name { color: var(--text-sub); font-size: 12px; }
+.timeline-card .tl-motivation {
+  display: block; font-size: 11px; color: var(--accent); margin-top: 2px;
+  line-height: 1.4;
+}
+.timeline-end {
+  display: flex; gap: 12px; margin-top: 2px;
+}
+.timeline-end .timeline-time { color: var(--text-sub); }
+.timeline-end .end-label { font-size: 13px; color: var(--text-sub); padding-top: 10px; }
+
+/* Edit time modal */
+.time-edit-popup {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3); display: none; z-index: 100;
+  align-items: center; justify-content: center;
+}
+.time-edit-popup.show { display: flex; }
+.time-edit-box {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 20px; width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.time-edit-box h3 { font-size: 15px; margin-bottom: 12px; }
+.time-edit-box input[type="time"] {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; font-size: 16px; font-family: inherit; margin-bottom: 12px;
+}
+.time-edit-box .edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.time-edit-box .edit-actions button {
+  border: none; border-radius: 8px; padding: 8px 16px;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.time-edit-box .btn-cancel { background: var(--bg); color: var(--text); }
+.time-edit-box .btn-save { background: var(--accent); color: #fff; }
+
+/* Settings Modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3); display: none; z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 24px; width: 90%; max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+.modal label { display: block; font-size: 13px; color: var(--text-sub); margin-bottom: 4px; }
+.modal input[type="password"], .modal input[type="text"] {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+  margin-bottom: 12px; color: var(--text);
+}
+.modal input:focus { outline: none; border-color: var(--accent); }
+.modal .note { font-size: 11px; color: var(--text-sub); margin-bottom: 16px; line-height: 1.5; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-actions button {
+  border: none; border-radius: 8px; padding: 10px 20px;
+  font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.modal-actions .btn-cancel { background: var(--bg); color: var(--text); }
+.modal-actions .btn-primary { background: var(--accent); color: #fff; }
+
+/* Loading */
+.loading { text-align: center; padding: 20px; color: var(--text-sub); font-size: 13px; }
+.loading .spinner {
+  width: 24px; height: 24px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Empty state */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--text-sub);
+  font-size: 13px; line-height: 1.8;
+}
+
+/* AI suggestion note */
+.ai-note {
+  background: var(--accent-bg); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 12px;
+  font-size: 13px; color: var(--text); line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .container { padding: 12px; }
+  .input-row input[type="text"] { font-size: 16px; }
+  .time-range input[type="time"] { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div style="display:flex;align-items:baseline;">
+      <h1>デイリープランナー</h1>
+      <span class="date" id="todayDate"></span>
+    </div>
+    <button class="settings-btn" onclick="showSettings()">⚙</button>
+  </div>
+
+  <!-- Time Range -->
+  <div class="time-range">
+    <label>起床</label>
+    <input type="time" id="wakeTime" value="07:00">
+    <span class="sep">〜</span>
+    <label>就寝</label>
+    <input type="time" id="sleepTime" value="23:00">
+  </div>
+
+  <!-- Task Input -->
+  <div class="input-section">
+    <h2>今日やりたいこと</h2>
+    <form id="taskForm" onsubmit="return addTask(event)">
+      <div class="input-row" style="margin-bottom:0">
+        <input type="text" id="taskNameInput" placeholder="タスク名を入力">
+        <button type="submit" class="add-btn">追加</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Task List -->
+  <div class="task-list" id="taskList"></div>
+
+  <!-- Generate Buttons -->
+  <div class="gen-buttons" id="genButtons" style="display:none;">
+    <button class="gen-btn manual" onclick="generateManual()">手動で組む</button>
+    <button class="gen-btn ai" onclick="generateAI()" id="aiBtn">AIに提案してもらう</button>
+  </div>
+
+  <!-- Schedule Result -->
+  <div class="schedule-section" id="scheduleSection" style="display:none;">
+    <h2>
+      タイムテーブル
+      <button class="clear-btn" onclick="clearSchedule()">クリア</button>
+    </h2>
+    <div class="ai-note" id="aiNote" style="display:none;"></div>
+    <div class="timeline" id="timeline"></div>
+  </div>
+</div>
+
+<!-- Task Edit Modal -->
+<div class="task-edit-overlay" id="taskEditOverlay" onclick="if(event.target===this)closeTaskEdit()">
+  <div class="task-edit-box">
+    <h3 id="taskEditTitle">タスクを編集</h3>
+    <div class="field">
+      <label>タスク名</label>
+      <input type="text" id="editTaskName">
+    </div>
+    <div class="field">
+      <label>所要時間（分）</label>
+      <input type="number" id="editTaskDuration" min="5" max="480" step="5" placeholder="30">
+    </div>
+    <div class="field">
+      <label>タイプ</label>
+      <div class="type-select">
+        <div class="t-opt" data-t="active" onclick="setEditType('active')">🏃 活動</div>
+        <div class="t-opt active" data-t="sit" onclick="setEditType('sit')">🪑 座り</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>優先度</label>
+      <div class="priority-select">
+        <div class="p-opt" data-p="high" onclick="setEditPriority('high')">高</div>
+        <div class="p-opt active" data-p="mid" onclick="setEditPriority('mid')">中</div>
+        <div class="p-opt" data-p="low" onclick="setEditPriority('low')">低</div>
+      </div>
+    </div>
+    <div class="task-edit-actions">
+      <button class="btn-cancel" onclick="closeTaskEdit()">キャンセル</button>
+      <button class="btn-save" onclick="saveTaskEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Time Edit Popup -->
+<div class="time-edit-popup" id="timeEditPopup" onclick="if(event.target===this)closeTimeEdit()">
+  <div class="time-edit-box">
+    <h3>開始時間を変更</h3>
+    <input type="time" id="timeEditInput">
+    <div class="edit-actions">
+      <button class="btn-cancel" onclick="closeTimeEdit()">キャンセル</button>
+      <button class="btn-save" onclick="saveTimeEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <h2>設定</h2>
+    <label>Claude API キー</label>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+    <p class="note">AIモードを使うにはClaude APIキーが必要です。キーはこの端末のlocalStorageにのみ保存されます。</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSettings()">キャンセル</button>
+      <button class="btn-primary" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let tasks = [];
+let schedule = [];
+let editingScheduleIdx = -1;
+let editingTaskId = -1;
+let editPriority = 'mid';
+let editType = 'sit';
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  // Date
+  const d = new Date();
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('todayDate').textContent =
+    `${d.getMonth()+1}/${d.getDate()}(${days[d.getDay()]})`;
+
+  // Load saved state
+  const saved = localStorage.getItem('daily-planner-state');
+  if (saved) {
+    try {
+      const s = JSON.parse(saved);
+      if (s.date === toDateStr(d)) {
+        tasks = s.tasks || [];
+        schedule = s.schedule || [];
+      }
+      if (s.wakeTime) document.getElementById('wakeTime').value = s.wakeTime;
+      if (s.sleepTime) document.getElementById('sleepTime').value = s.sleepTime;
+    } catch(e) {}
+  }
+  const key = localStorage.getItem('daily-planner-apikey');
+  if (key) document.getElementById('apiKeyInput').value = key;
+
+  renderTasks();
+  if (schedule.length) renderSchedule();
+});
+
+function toDateStr(d) {
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function saveState() {
+  const d = new Date();
+  localStorage.setItem('daily-planner-state', JSON.stringify({
+    date: toDateStr(d),
+    tasks, schedule,
+    wakeTime: document.getElementById('wakeTime').value,
+    sleepTime: document.getElementById('sleepTime').value
+  }));
+}
+
+// ── Task Input ──
+function addTask(e) {
+  e.preventDefault();
+  const name = document.getElementById('taskNameInput').value.trim();
+  if (!name) return false;
+  tasks.push({ id: Date.now(), name, duration: 60, priority: 'mid', type: 'sit' });
+  document.getElementById('taskNameInput').value = '';
+  renderTasks();
+  saveState();
+  return false;
+}
+
+function removeTask(id, e) {
+  if (e) e.stopPropagation();
+  tasks = tasks.filter(t => t.id !== id);
+  renderTasks();
+  saveState();
+}
+
+function openTaskEdit(id) {
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  editingTaskId = id;
+  document.getElementById('editTaskName').value = t.name;
+  document.getElementById('editTaskDuration').value = t.duration;
+  setEditType(t.type || 'sit');
+  setEditPriority(t.priority);
+  document.getElementById('taskEditOverlay').classList.add('show');
+}
+
+function closeTaskEdit() {
+  document.getElementById('taskEditOverlay').classList.remove('show');
+  editingTaskId = -1;
+}
+
+function setEditType(t) {
+  editType = t;
+  document.querySelectorAll('.task-edit-box .t-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.t === t);
+  });
+}
+
+function setEditPriority(p) {
+  editPriority = p;
+  document.querySelectorAll('.task-edit-box .p-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.p === p);
+  });
+}
+
+function saveTaskEdit() {
+  const t = tasks.find(t => t.id === editingTaskId);
+  if (!t) return;
+  t.name = document.getElementById('editTaskName').value.trim() || t.name;
+  t.duration = parseInt(document.getElementById('editTaskDuration').value) || 60;
+  t.priority = editPriority;
+  t.type = editType;
+  renderTasks();
+  saveState();
+  closeTaskEdit();
+}
+
+const priorityLabels = { high: '高', mid: '中', low: '低' };
+
+function renderTasks() {
+  const el = document.getElementById('taskList');
+  const genEl = document.getElementById('genButtons');
+  if (!tasks.length) {
+    el.innerHTML = '<div class="empty-state">タスクを追加してスケジュールを組みましょう</div>';
+    genEl.style.display = 'none';
+    return;
+  }
+  genEl.style.display = 'flex';
+  el.innerHTML = tasks.map(t => `
+    <div class="task-item" onclick="openTaskEdit(${t.id})">
+      <div class="priority-dot ${t.priority}"></div>
+      <span class="task-name">${esc(t.name)}</span>
+      <div class="task-meta">
+        <span class="type-badge ${t.type || 'sit'}">${t.type === 'active' ? '🏃' : '🪑'}</span>
+        <span class="task-time">${t.duration}分</span>
+        <span class="task-priority-label ${t.priority}">${priorityLabels[t.priority]}</span>
+      </div>
+      <button class="delete-btn" onclick="removeTask(${t.id}, event)">×</button>
+    </div>
+  `).join('');
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── Manual Schedule ──
+function generateManual() {
+  if (!tasks.length) return;
+  const wake = parseTime(document.getElementById('wakeTime').value);
+  const sleep = parseTime(document.getElementById('sleepTime').value);
+  const totalAvailable = sleep - wake;
+
+  // Sort by priority time slots: mid→morning, high→afternoon, low→evening
+  // Then interleave active/sit types to avoid sitting too long
+  const lowTasks = tasks.filter(t => t.priority === 'low');
+  const midTasks = tasks.filter(t => t.priority === 'mid');
+  const highTasks = tasks.filter(t => t.priority === 'high');
+  const byPriority = [...midTasks, ...highTasks, ...lowTasks];
+
+  // Interleave: alternate active and sit tasks
+  const activeTasks = byPriority.filter(t => t.type === 'active');
+  const sitTasks = byPriority.filter(t => t.type !== 'active');
+  const sorted = [];
+  let ai = 0, si = 0;
+  // Start with active if available (get moving!)
+  let wantActive = activeTasks.length > 0;
+  while (ai < activeTasks.length || si < sitTasks.length) {
+    if (wantActive && ai < activeTasks.length) {
+      sorted.push(activeTasks[ai++]);
+    } else if (!wantActive && si < sitTasks.length) {
+      sorted.push(sitTasks[si++]);
+    } else if (ai < activeTasks.length) {
+      sorted.push(activeTasks[ai++]);
+    } else {
+      sorted.push(sitTasks[si++]);
+    }
+    wantActive = !wantActive;
+  }
+
+  // Calculate total task time
+  const totalTask = sorted.reduce((s, t) => s + t.duration, 0);
+  const breakCount = sorted.length - 1;
+  const breakDuration = 10;
+  const totalWithBreaks = totalTask + breakCount * breakDuration;
+
+  // Calculate gap to distribute evenly across the day
+  let gap = 0;
+  if (totalWithBreaks < totalAvailable && sorted.length > 0) {
+    // Extra free time to distribute as gaps between tasks
+    const extraTime = totalAvailable - totalWithBreaks;
+    // Distribute gaps: before first task, between tasks (already have breaks), after last
+    // Use slots = tasks count + 1 (before first, after last, plus between)
+    const slots = sorted.length + 1;
+    gap = Math.floor(extraTime / slots);
+  }
+
+  // Add lunch break if time range covers 12:00
+  const lunchStart = 12 * 60; // 12:00
+  const dinnerStart = 18 * 60 + 30; // 18:30
+  const needLunch = wake < lunchStart && sleep > lunchStart + 60;
+  const needDinner = wake < dinnerStart && sleep > dinnerStart + 60;
+
+  schedule = [];
+  let cursor = wake + gap; // Start with initial gap
+
+  for (let i = 0; i < sorted.length; i++) {
+    const t = sorted[i];
+
+    // Insert lunch if it's time
+    if (needLunch && cursor <= lunchStart && cursor + t.duration > lunchStart) {
+      schedule.push({ name: '昼食', duration: 60, priority: '', start: lunchStart, isBreak: true });
+      cursor = lunchStart + 60;
+    } else if (needLunch && cursor >= lunchStart - 30 && cursor <= lunchStart + 30 && !schedule.find(s => s.name === '昼食')) {
+      schedule.push({ name: '昼食', duration: 60, priority: '', start: cursor, isBreak: true });
+      cursor += 60;
+    }
+
+    // Insert dinner if it's time
+    if (needDinner && cursor >= dinnerStart - 30 && cursor <= dinnerStart + 30 && !schedule.find(s => s.name === '夕食')) {
+      schedule.push({ name: '夕食', duration: 60, priority: '', start: cursor, isBreak: true });
+      cursor += 60;
+    }
+
+    if (cursor + t.duration > sleep) break;
+    schedule.push({
+      name: t.name, duration: t.duration, priority: t.priority,
+      type: t.type || 'sit', start: cursor, isBreak: false
+    });
+    cursor += t.duration;
+
+    // Add break + gap between tasks
+    if (i < sorted.length - 1) {
+      schedule.push({ name: '休憩', duration: breakDuration, priority: '', start: cursor, isBreak: true });
+      cursor += breakDuration + gap;
+    }
+  }
+
+  document.getElementById('aiNote').style.display = 'none';
+  renderSchedule();
+  saveState();
+}
+
+function parseTime(str) {
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function formatTime(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+// ── AI Schedule ──
+async function generateAI() {
+  const key = localStorage.getItem('daily-planner-apikey');
+  if (!key) {
+    showSettings();
+    return;
+  }
+  if (!tasks.length) return;
+
+  const btn = document.getElementById('aiBtn');
+  btn.disabled = true;
+  btn.textContent = '考え中...';
+
+  const wake = document.getElementById('wakeTime').value;
+  const sleep = document.getElementById('sleepTime').value;
+  const taskDesc = tasks.map(t =>
+    `- ${t.name}（${t.duration}分、優先度:${t.priority === 'high' ? '高' : t.priority === 'mid' ? '中' : '低'}、タイプ:${t.type === 'active' ? '活動' : '座り'}）`
+  ).join('\n');
+
+  const prompt = `あなたはスケジュール管理の専門家です。以下のタスクを最適な順番と時間に配置してください。
+
+起床時間: ${wake}
+就寝時間: ${sleep}
+
+タスク一覧:
+${taskDesc}
+
+以下のルールに従ってください:
+- 午前中は掃除やルーティンなど軽めのタスク（優先度「中」）を配置
+- 昼食後〜夕方は重要なタスク（優先度「高」）をメインに配置
+- 夜はお楽しみや軽いタスク（優先度「低」）を配置
+- 1日を通してバランスよく配置し、タスクを上から詰めないこと
+- 「活動」タスクと「座り」タスクを交互に配置し、ずっと座り続けないようにする
+- 適度に休憩（10分程度）を挟む
+- 食事の時間も考慮する（昼12:00頃、夜18:30頃）
+- 各タスクの所要時間は変えない
+
+必ず以下のJSON形式のみで返答してください（他のテキストは不要）:
+{
+  "note": "スケジュールの簡単な説明（1〜2文）",
+  "items": [
+    {"name": "タスク名", "start": "HH:MM", "duration": 分数, "priority": "high/mid/low", "type": "active/sit", "isBreak": false},
+    {"name": "昼食", "start": "12:00", "duration": 60, "priority": "", "type": "", "isBreak": true}
+  ]
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.content[0].text;
+
+    // Parse JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('AIの応答を解析できませんでした');
+
+    const result = JSON.parse(jsonMatch[0]);
+    schedule = result.items.map(item => ({
+      name: item.name,
+      duration: item.duration,
+      priority: item.priority || '',
+      type: item.type || '',
+      start: parseTime(item.start),
+      isBreak: item.isBreak || false
+    }));
+
+    const noteEl = document.getElementById('aiNote');
+    if (result.note) {
+      noteEl.textContent = result.note;
+      noteEl.style.display = 'block';
+    } else {
+      noteEl.style.display = 'none';
+    }
+
+    renderSchedule();
+    saveState();
+  } catch (err) {
+    alert('エラー: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'AIに提案してもらう';
+  }
+}
+
+// ── Motivation Messages ──
+function getMotivation(item, idx) {
+  const hour = Math.floor(item.start / 60);
+  const morningMsgs = [
+    'サクッと終わらせてスッキリしよう!',
+    'これが終わったら気持ちいい1日の始まり!',
+    '朝やっておけば後がラク!',
+    '体を動かして目を覚まそう!',
+    '先にやれば残りの1日が自由!',
+  ];
+  const afternoonMsgs = [
+    '午後のゴールデンタイム、集中!',
+    'ここが今日のメインイベント!',
+    '終わったら夜のお楽しみが待ってる!',
+    'あと少しで自由時間!',
+    '一番大事なことに全集中!',
+  ];
+  const eveningMsgs = [
+    '今日もお疲れさま、ご褒美タイム!',
+    'リラックスして楽しもう!',
+    '好きなことをする時間!',
+    '頑張った自分にご褒美!',
+    '1日の締めくくりを楽しんで!',
+  ];
+
+  // Pick message based on time of day and use idx for variety
+  if (hour < 12) return morningMsgs[idx % morningMsgs.length];
+  if (hour < 18) return afternoonMsgs[idx % afternoonMsgs.length];
+  return eveningMsgs[idx % eveningMsgs.length];
+}
+
+// ── Render Schedule ──
+function renderSchedule() {
+  const section = document.getElementById('scheduleSection');
+  const el = document.getElementById('timeline');
+  if (!schedule.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  el.innerHTML = schedule.map((item, i) => {
+    const mot = !item.isBreak ? getMotivation(item, i) : '';
+    return `
+    <div class="timeline-item"
+         draggable="${!item.isBreak}"
+         data-idx="${i}"
+         ondragstart="onDragStart(event,${i})"
+         ondragover="onDragOver(event,${i})"
+         ondragleave="onDragLeave(event)"
+         ondrop="onDrop(event,${i})"
+         ontouchstart="onTouchStart(event,${i})"
+         ontouchmove="onTouchMove(event,${i})"
+         ontouchend="onTouchEnd(event,${i})">
+      <div class="timeline-time" onclick="openTimeEdit(${i})">${formatTime(item.start)}</div>
+      <div class="timeline-card${item.isBreak ? ' break-card' : ''}">
+        ${!item.isBreak ? `<span class="type-icon">${item.type === 'active' ? '🏃' : '🪑'}</span>` : ''}
+        ${item.priority ? `<div class="priority-dot ${item.priority}"></div>` : ''}
+        <div style="flex:1">
+          <span class="tl-name">${esc(item.name)}</span>
+          ${mot ? `<span class="tl-motivation">${mot}</span>` : ''}
+        </div>
+        <span class="tl-duration">${item.duration}分</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // End time
+  if (schedule.length) {
+    const last = schedule[schedule.length - 1];
+    el.innerHTML += `
+      <div class="timeline-end">
+        <div class="timeline-time">${formatTime(last.start + last.duration)}</div>
+        <div class="end-label">終了</div>
+      </div>`;
+  }
+}
+
+// ── Drag & Drop (Desktop) ──
+let dragIdx = -1;
+function onDragStart(e, idx) {
+  if (schedule[idx].isBreak) { e.preventDefault(); return; }
+  dragIdx = idx;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(e, idx) {
+  e.preventDefault();
+  if (dragIdx === idx || schedule[idx].isBreak) return;
+  document.querySelectorAll('.timeline-item').forEach(el => el.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+function onDrop(e, idx) {
+  e.preventDefault();
+  document.querySelectorAll('.timeline-item').forEach(el => {
+    el.classList.remove('drag-over','dragging');
+  });
+  if (dragIdx === idx || dragIdx < 0) return;
+  reorderSchedule(dragIdx, idx);
+  dragIdx = -1;
+}
+
+// ── Touch Drag (Mobile) ──
+let touchDragIdx = -1;
+let touchStartY = 0;
+let touchClone = null;
+function onTouchStart(e, idx) {
+  if (schedule[idx].isBreak) return;
+  touchDragIdx = idx;
+  touchStartY = e.touches[0].clientY;
+}
+function onTouchMove(e, idx) {
+  if (touchDragIdx < 0) return;
+  const dy = Math.abs(e.touches[0].clientY - touchStartY);
+  if (dy > 10) {
+    e.preventDefault();
+    if (!touchClone) {
+      const el = e.currentTarget;
+      el.classList.add('dragging');
+    }
+    // Highlight drop target
+    const touch = e.touches[0];
+    const items = document.querySelectorAll('.timeline-item');
+    items.forEach(item => item.classList.remove('drag-over'));
+    for (const item of items) {
+      const rect = item.getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        const targetIdx = parseInt(item.dataset.idx);
+        if (targetIdx !== touchDragIdx && !schedule[targetIdx].isBreak) {
+          item.classList.add('drag-over');
+        }
+        break;
+      }
+    }
+  }
+}
+function onTouchEnd(e, idx) {
+  if (touchDragIdx < 0) return;
+  document.querySelectorAll('.timeline-item').forEach(el => {
+    el.classList.remove('dragging','drag-over');
+  });
+  // Find drop target
+  const touch = e.changedTouches[0];
+  const items = document.querySelectorAll('.timeline-item');
+  for (const item of items) {
+    const rect = item.getBoundingClientRect();
+    if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+      const targetIdx = parseInt(item.dataset.idx);
+      if (targetIdx !== touchDragIdx && !schedule[targetIdx].isBreak) {
+        reorderSchedule(touchDragIdx, targetIdx);
+      }
+      break;
+    }
+  }
+  touchDragIdx = -1;
+  touchClone = null;
+}
+
+function reorderSchedule(fromIdx, toIdx) {
+  // Remove breaks, reorder tasks, re-insert breaks
+  const taskItems = schedule.filter(s => !s.isBreak);
+  const breakItems = schedule.filter(s => s.isBreak && s.name !== '休憩');
+
+  // Find the actual task indices
+  let fromTask = -1, toTask = -1, ti = 0;
+  for (let i = 0; i < schedule.length; i++) {
+    if (!schedule[i].isBreak) {
+      if (i === fromIdx) fromTask = ti;
+      if (i === toIdx) toTask = ti;
+      ti++;
+    }
+  }
+  if (fromTask < 0) fromTask = 0;
+  if (toTask < 0) toTask = taskItems.length - 1;
+
+  const [moved] = taskItems.splice(fromTask, 1);
+  taskItems.splice(toTask, 0, moved);
+
+  // Rebuild with breaks
+  const wake = parseTime(document.getElementById('wakeTime').value);
+  const sleep = parseTime(document.getElementById('sleepTime').value);
+  schedule = [];
+  let cursor = schedule.length ? schedule[0].start : wake;
+  // Use earliest start from existing or wake
+  cursor = wake;
+
+  for (let i = 0; i < taskItems.length; i++) {
+    // Re-insert special breaks (lunch etc.)
+    for (const br of breakItems) {
+      if (br.start <= cursor + taskItems[i].duration && br.start >= cursor) {
+        schedule.push({ ...br, start: cursor });
+        cursor += br.duration;
+      }
+    }
+    taskItems[i].start = cursor;
+    schedule.push(taskItems[i]);
+    cursor += taskItems[i].duration;
+    // Add regular break
+    if (i < taskItems.length - 1 && cursor + 10 <= sleep) {
+      schedule.push({ name: '休憩', duration: 10, priority: '', start: cursor, isBreak: true });
+      cursor += 10;
+    }
+  }
+
+  renderSchedule();
+  saveState();
+}
+
+// ── Time Edit ──
+function openTimeEdit(idx) {
+  editingScheduleIdx = idx;
+  document.getElementById('timeEditInput').value = formatTime(schedule[idx].start);
+  document.getElementById('timeEditPopup').classList.add('show');
+}
+function closeTimeEdit() {
+  document.getElementById('timeEditPopup').classList.remove('show');
+  editingScheduleIdx = -1;
+}
+function saveTimeEdit() {
+  if (editingScheduleIdx < 0) return;
+  const newStart = parseTime(document.getElementById('timeEditInput').value);
+  const diff = newStart - schedule[editingScheduleIdx].start;
+  // Shift this and all subsequent items
+  for (let i = editingScheduleIdx; i < schedule.length; i++) {
+    schedule[i].start += diff;
+  }
+  renderSchedule();
+  saveState();
+  closeTimeEdit();
+}
+
+// ── Schedule Clear ──
+function clearSchedule() {
+  schedule = [];
+  document.getElementById('scheduleSection').style.display = 'none';
+  document.getElementById('aiNote').style.display = 'none';
+  saveState();
+}
+
+// ── Settings ──
+function showSettings() {
+  document.getElementById('settingsModal').classList.add('show');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('show');
+}
+function saveSettings() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (key) {
+    localStorage.setItem('daily-planner-apikey', key);
+  } else {
+    localStorage.removeItem('daily-planner-apikey');
+  }
+  closeSettings();
+}
+
+// Save time range changes
+document.getElementById('wakeTime').addEventListener('change', saveState);
+document.getElementById('sleepTime').addEventListener('change', saveState);
+</script>
+</body>
+</html>
