@@ -1,5 +1,5 @@
 // Service Worker - Network First (always get latest, fallback to cache)
-const CACHE_NAME = 'planner-v2';
+const CACHE_NAME = 'planner-v3';
 const ASSETS = [
   './daily-planner.html',
   './planner-icon.svg',
