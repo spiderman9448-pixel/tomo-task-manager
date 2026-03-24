@@ -536,9 +536,9 @@ body {
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
   <div class="modal">
     <h2>設定</h2>
-    <label>Claude API キー</label>
-    <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
-    <p class="note">AIモードを使うにはClaude APIキーが必要です。キーはこの端末のlocalStorageにのみ保存されます。</p>
+    <label>Gemini API キー</label>
+    <input type="password" id="apiKeyInput" placeholder="AIza...">
+    <p class="note">AIモードを使うにはGoogle Gemini APIキーが必要です（無料）。<br><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">こちらから取得 →</a><br>キーはこの端末のlocalStorageにのみ保存されます。</p>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeSettings()">キャンセル</button>
       <button class="btn-primary" onclick="saveSettings()">保存</button>
@@ -1136,18 +1136,12 @@ ${taskDesc}
 }`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
       })
     });
 
@@ -1157,7 +1151,8 @@ ${taskDesc}
     }
 
     const data = await res.json();
-    const text = data.content[0].text;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('AIの応答が空でした');
 
     // Parse JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
