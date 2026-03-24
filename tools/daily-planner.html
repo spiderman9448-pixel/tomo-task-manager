@@ -246,6 +246,11 @@ body {
 }
 .timeline-card.break-card .tl-name { color: var(--text-sub); font-size: 11px; }
 .timeline-card.break-card .tl-duration { background: transparent; }
+.timeline-card.meal-card {
+  background: #fffbf0; border: 1.5px solid #f0d9a0; box-shadow: var(--shadow);
+  min-height: 40px; padding: 8px 14px;
+}
+.timeline-card.meal-card .tl-name { color: var(--text); font-size: 14px; font-weight: 600; }
 .timeline-card .tl-motivation {
   display: block; font-size: 11px; color: var(--accent); margin-top: 2px;
   line-height: 1.4;
@@ -1072,7 +1077,7 @@ function generateManual() {
 
   // Insert breakfast (prep 15min + eat 15min = 30min)
   if (needBreakfast) {
-    schedule.push({ name: '☀️ 朝食準備+朝食', duration: 30, priority: '', start: cursor, isBreak: true });
+    schedule.push({ name: '☀️ 朝食準備+朝食', duration: 30, priority: '', start: cursor, isBreak: true, isMeal: true });
     cursor += 30;
   }
   cursor += gap; // Initial gap after breakfast
@@ -1085,7 +1090,7 @@ function generateManual() {
     // Insert lunch: when cursor reaches 11:30+ or task would overlap 12:00
     if (needLunch && !lunchInserted && (cursor >= lunchStart - 30 || cursor + t.duration > lunchStart)) {
       const lunchAt = Math.max(cursor, lunchStart);
-      schedule.push({ name: '🍚 昼食準備+昼食', duration: 60, priority: '', start: lunchAt, isBreak: true });
+      schedule.push({ name: '🍚 昼食準備+昼食', duration: 60, priority: '', start: lunchAt, isBreak: true, isMeal: true });
       cursor = lunchAt + 60;
       lunchInserted = true;
     }
@@ -1093,7 +1098,7 @@ function generateManual() {
     // Insert dinner: when cursor reaches 18:00+ or task would overlap 18:30
     if (needDinner && !dinnerInserted && (cursor >= dinnerStart - 30 || cursor + t.duration > dinnerStart)) {
       const dinnerAt = Math.max(cursor, dinnerStart);
-      schedule.push({ name: '🌙 夕食準備+夕食', duration: 60, priority: '', start: dinnerAt, isBreak: true });
+      schedule.push({ name: '🌙 夕食準備+夕食', duration: 60, priority: '', start: dinnerAt, isBreak: true, isMeal: true });
       cursor = dinnerAt + 60;
       dinnerInserted = true;
     }
@@ -1320,7 +1325,7 @@ function renderSchedule() {
          ontouchmove="onTouchMove(event,${i})"
          ontouchend="onTouchEnd(event,${i})">
       <div class="timeline-time" onclick="openTimeEdit(${i})">${formatTime(item.start)}</div>
-      <div class="timeline-card${item.isBreak ? ' break-card' : ''}${item.done ? ' done' : ''}">
+      <div class="timeline-card${item.isBreak ? (item.isMeal ? ' break-card meal-card' : ' break-card') : ''}${item.done ? ' done' : ''}">
         ${!item.isBreak ? `<div class="tl-check${item.done ? ' checked' : ''}" onclick="toggleDone(${i}, event)">${item.done ? '✓' : ''}</div>` : ''}
         ${!item.isBreak ? `<span class="type-icon">${item.type === 'active' ? '🏃' : '📖'}</span>` : ''}
         ${item.priority ? `<div class="priority-dot ${item.priority}"></div>` : ''}
