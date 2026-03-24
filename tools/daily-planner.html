@@ -1170,25 +1170,43 @@ async function generateAI() {
     `${t.name}|${t.duration}|${t.priority}|${t.type}`
   ).join('\n');
 
-  const prompt = `タスクを最適な時間に配置して。起床${wake}〜就寝${sleep}。
-ルール:午前=軽め(中),午後=重要(高),夜=楽しみ(低)。活動と座りを交互。
-食事:朝食(起床後30分),昼食(12:00頃60分),夕食(18:30頃60分)を入れて。
-夕食後〜就寝まで:リラックスタイムとして軽いタスクやお楽しみ(優先度低)を配置。空き時間を作りすぎない。
-休憩はタスクの間に1つだけ(10分)。連続して休憩を入れない。就寝は入れない。所要時間は変えない。
-全てのタスクを必ず配置すること。
+  // Calculate total task time and available time
+  const wakeMin = parseTime(wake);
+  const sleepMin = parseTime(sleep);
+  const totalTaskMin = tasks.reduce((s,t) => s + t.duration, 0);
+  const availableMin = sleepMin - wakeMin;
+  const mealMin = 150; // 30+60+60
+  const freeMin = availableMin - totalTaskMin - mealMin;
+  const breaksBetween = tasks.length > 1 ? tasks.length - 1 : 0;
+  const gapPerBreak = breaksBetween > 0 ? Math.floor(freeMin / (breaksBetween + 2)) : 10;
 
-タスク(名前|分|優先度|タイプ):
+  const prompt = `1日のスケジュールを組んで。${wake}起床〜${sleep}就寝（${availableMin}分間）。
+
+重要ルール:
+- タスクを1日全体に均等に散らばせて配置する。上から詰めない。
+- タスク間の空き時間(休憩)は${Math.max(gapPerBreak, 15)}〜${Math.max(gapPerBreak + 20, 30)}分にする。
+- 午前: 掃除やルーティン(優先度中)
+- 午後: 重要タスク(優先度高)
+- 夜(夕食後): お楽しみや軽いタスク(優先度低)
+- 「活動」と「座り」タスクを交互に配置
+- 食事: 朝食${wake}直後(30分)、昼食12:00頃(60分)、夕食18:30頃(60分)
+- 全てのタスクを必ず入れること。所要時間は変えない。
+- 就寝時間の直前まで予定を入れる。
+
+タスク一覧(名前|分|優先度|タイプ):
 ${taskShort}
 
-以下の形式で1行1アイテム、他のテキスト不要:
+出力形式(1行1アイテム、他テキスト不要):
 NOTE:一言コメント
 HH:MM|名前|分|priority|type|break
+(breakは食事や休憩なら1、タスクなら0)
+
 例:
 NOTE:バランスよく配置しました
 07:00|朝食|30|||1
 07:30|掃除機|15|mid|active|0
-07:45|休憩|10|||1
-07:55|デュオリンゴ|15|high|sit|0
+08:00|休憩|15|||1
+08:15|デュオリンゴ|15|high|sit|0
 12:00|昼食|60|||1`;
 
   try {
