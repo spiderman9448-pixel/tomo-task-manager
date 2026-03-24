@@ -1339,7 +1339,7 @@ function renderSchedule() {
          ontouchmove="onTouchMove(event,${i})"
          ontouchend="onTouchEnd(event,${i})">
       <div class="timeline-time" onclick="openTimeEdit(${i})">${formatTime(item.start)}</div>
-      <div class="timeline-card${item.isBreak ? (item.isMeal ? ' break-card meal-card' : ' break-card') : ''}${item.done ? ' done' : ''}">
+      <div class="timeline-card${item.isBreak && /朝食|昼食|夕食/.test(item.name) ? ' break-card meal-card' : item.isBreak ? ' break-card' : ''}${item.done ? ' done' : ''}">
         ${!item.isBreak ? `<div class="tl-check${item.done ? ' checked' : ''}" onclick="toggleDone(${i}, event)">${item.done ? '✓' : ''}</div>` : ''}
         ${!item.isBreak ? `<span class="type-icon">${item.type === 'active' ? '🏃' : '📖'}</span>` : ''}
         ${item.priority ? `<div class="priority-dot ${item.priority}"></div>` : ''}
