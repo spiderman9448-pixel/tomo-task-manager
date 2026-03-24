@@ -490,17 +490,24 @@ body {
 
   <!-- Task Input -->
   <div class="input-section">
-    <h2>今日やりたいこと</h2>
-    <form id="taskForm" onsubmit="return addTask(event)">
-      <div class="input-row" style="margin-bottom:0">
-        <input type="text" id="taskNameInput" placeholder="タスク名を入力">
-        <button type="submit" class="add-btn">追加</button>
-      </div>
-    </form>
+    <h2 onclick="toggleTaskSection()" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+      今日やりたいこと <span id="taskCount" style="font-size:13px;color:var(--text-sub);font-weight:normal;"></span>
+      <span id="taskToggle" style="font-size:18px;transition:transform .2s;">▼</span>
+    </h2>
+    <div id="taskSectionBody">
+      <form id="taskForm" onsubmit="return addTask(event)">
+        <div class="input-row" style="margin-bottom:0">
+          <input type="text" id="taskNameInput" placeholder="タスク名を入力">
+          <button type="submit" class="add-btn">追加</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Task List -->
-  <div class="task-list" id="taskList"></div>
+  <div id="taskListWrap">
+    <div class="task-list" id="taskList"></div>
+  </div>
 
   <!-- Generate Buttons -->
   <div class="gen-buttons" id="genButtons" style="display:none;">
@@ -1016,9 +1023,18 @@ function saveTaskEdit() {
 
 const priorityLabels = { high: '高', mid: '中', low: '低' };
 
+let taskSectionCollapsed = false;
+function toggleTaskSection() {
+  taskSectionCollapsed = !taskSectionCollapsed;
+  document.getElementById('taskSectionBody').style.display = taskSectionCollapsed ? 'none' : '';
+  document.getElementById('taskListWrap').style.display = taskSectionCollapsed ? 'none' : '';
+  document.getElementById('taskToggle').style.transform = taskSectionCollapsed ? 'rotate(-90deg)' : '';
+}
+
 function renderTasks() {
   const el = document.getElementById('taskList');
   const genEl = document.getElementById('genButtons');
+  document.getElementById('taskCount').textContent = tasks.length ? `(${tasks.length}件)` : '';
   if (!tasks.length) {
     el.innerHTML = '<div class="empty-state">タスクを追加してスケジュールを組みましょう</div>';
     genEl.style.display = 'none';
@@ -1152,6 +1168,8 @@ function generateManual() {
   document.getElementById('aiNote').style.display = 'none';
   renderSchedule();
   saveState();
+  // Auto-collapse task list after schedule is generated
+  if (!taskSectionCollapsed) toggleTaskSection();
 }
 
 function parseTime(str) {
@@ -1313,6 +1331,8 @@ NOTE:バランスよく配置しました
 
     renderSchedule();
     saveState();
+    // Auto-collapse task list after schedule is generated
+    if (!taskSectionCollapsed) toggleTaskSection();
   } catch (err) {
     alert('エラー: ' + err.message);
   } finally {
