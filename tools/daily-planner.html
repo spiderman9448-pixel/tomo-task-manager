@@ -1190,7 +1190,7 @@ async function generateAI() {
 - 夜(夕食後): お楽しみや軽いタスク(優先度低)
 - 「活動」と「座り」タスクを交互に配置
 - 食事: 朝食${wake}直後(30分)、昼食12:00頃(60分)、夕食18:30頃(60分)
-- 全てのタスクを必ず入れること。所要時間は変えない。
+- 全てのタスクを必ず入れること。所要時間は変えない。タスク名は一字一句変えずにそのまま使うこと。
 - 就寝時間の直前まで予定を入れる。
 
 タスク一覧(名前|分|優先度|タイプ):
@@ -1274,6 +1274,15 @@ NOTE:バランスよく配置しました
       });
     }
     if (!parsed.length) throw new Error('AIの応答を解析できませんでした。もう一度お試しください。');
+    // Fix AI-garbled task names by matching to original tasks
+    const taskNames = tasks.map(t => t.name);
+    for (const item of parsed) {
+      if (item.isBreak) continue;
+      if (taskNames.includes(item.name)) continue;
+      // Find closest match from original tasks
+      const match = taskNames.find(n => item.name.includes(n) || n.includes(item.name));
+      if (match) item.name = match;
+    }
     schedule = parsed;
 
     const noteEl = document.getElementById('aiNote');
