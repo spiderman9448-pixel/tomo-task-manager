@@ -569,7 +569,7 @@
 
   <div class="stats-inline" id="statsInline"></div>
   <div id="taskList"></div>
-  <div class="tap-to-add" onclick="openAddModal()"></div>
+  <div class="tap-to-add"></div>
 </div>
 
 <!-- FAB -->
@@ -1030,11 +1030,44 @@
     return '';
   }
 
-  // Tap empty space in task list area to add task
-  $('taskList').addEventListener('click', e => {
-    if (e.target === $('taskList')) openAddModal();
-  });
-  document.querySelector('.tap-to-add').addEventListener('click', () => openAddModal());
+  // Swipe or tap on empty area below tasks to change date / add task
+  (function() {
+    let esx = 0, esy = 0, eSwiped = false;
+    function onStart(e) {
+      if (e.target.closest('.task-card') || e.target.closest('.swipe-btn') || e.target.closest('.checkbox')) return;
+      esx = e.touches[0].clientX; esy = e.touches[0].clientY; eSwiped = false;
+    }
+    function onEnd(e) {
+      if (!esx) return;
+      const dx = e.changedTouches[0].clientX - esx;
+      const dy = e.changedTouches[0].clientY - esy;
+      esx = 0;
+      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        eSwiped = true;
+        setTimeout(() => { eSwiped = false; }, 400);
+        const inner = $('dayNavInner');
+        if (dx < 0) {
+          inner.style.transition = 'transform 0.2s ease';
+          inner.style.transform = 'translateX(-200%)';
+          setTimeout(() => { dayOffset++; renderDayNav(); renderWeek(); selectedDate = getSelectedDateFromOffset(); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
+        } else {
+          inner.style.transition = 'transform 0.2s ease';
+          inner.style.transform = 'translateX(0%)';
+          setTimeout(() => { dayOffset--; renderDayNav(); renderWeek(); selectedDate = getSelectedDateFromOffset(); fetchCalendarEvents(selectedDate).then(() => render()); }, 200);
+        }
+      }
+    }
+    const tapArea = document.querySelector('.tap-to-add');
+    if (tapArea) {
+      tapArea.addEventListener('touchstart', onStart, { passive: true });
+      tapArea.addEventListener('touchend', onEnd, { passive: true });
+      tapArea.addEventListener('click', () => { if (!eSwiped) openAddModal(); });
+    }
+    const tl = $('taskList');
+    tl.addEventListener('touchstart', onStart, { passive: true });
+    tl.addEventListener('touchend', onEnd, { passive: true });
+    tl.addEventListener('click', e => { if (e.target === tl && !eSwiped) openAddModal(); });
+  })();
 
   // Day swipe (touch + mouse)
   (function() {
@@ -1923,6 +1956,7 @@
   };
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
   const db = firebase.database();
   let currentUser = null;
   let dbListeners = [];
