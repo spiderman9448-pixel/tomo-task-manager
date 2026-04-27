@@ -397,8 +397,8 @@
     .empty-state .icon { font-size: 40px; margin-bottom: 8px; opacity: 0.5; }
     .empty-state p { font-size: 14px; }
     .empty-state .hint { font-size: 11px; margin-top: 6px; opacity: 0.6; }
-    #taskList { min-height: 80px; padding-bottom: 20px; }
-    .tap-to-add { min-height: 150px; cursor: pointer; }
+    #taskList { min-height: 80px; padding-bottom: 20px; touch-action: pan-y; }
+    .tap-to-add { min-height: 150px; cursor: pointer; touch-action: pan-y; }
 
     /* Wish Lists */
     .lists-btn {
@@ -1032,19 +1032,20 @@
 
   // Swipe or tap on empty area below tasks to change date / add task
   (function() {
-    let esx = 0, esy = 0, eSwiped = false;
+    let esx = 0, esy = 0, eTouching = false, eSwiped = false;
     function onStart(e) {
       if (e.target.closest('.task-card') || e.target.closest('.swipe-btn') || e.target.closest('.checkbox')) return;
-      esx = e.touches[0].clientX; esy = e.touches[0].clientY; eSwiped = false;
+      esx = e.touches[0].clientX; esy = e.touches[0].clientY;
+      eTouching = true; eSwiped = false;
     }
     function onEnd(e) {
-      if (!esx) return;
+      if (!eTouching) return;
+      eTouching = false;
       const dx = e.changedTouches[0].clientX - esx;
       const dy = e.changedTouches[0].clientY - esy;
-      esx = 0;
-      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
         eSwiped = true;
-        setTimeout(() => { eSwiped = false; }, 400);
+        setTimeout(() => { eSwiped = false; }, 500);
         const inner = $('dayNavInner');
         if (dx < 0) {
           inner.style.transition = 'transform 0.2s ease';
