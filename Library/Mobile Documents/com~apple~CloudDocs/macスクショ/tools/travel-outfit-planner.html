@@ -2912,8 +2912,33 @@ async function saveQuickText(day, category) {
 // Member edit is now handled by ✏️ icon tap
 
 // ============ PWA Service Worker ============
+// Unregister any old service workers, then register the new network-first one
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    for (const r of regs) {
+      if (!r.active || !r.active.scriptURL.endsWith('travel-sw.js')) {
+        r.unregister().catch(() => {});
+      }
+    }
+  }).catch(() => {});
+  navigator.serviceWorker.register('travel-sw.js').then((reg) => {
+    // When a new SW takes over, reload once to pick up fresh assets
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          nw.postMessage('skipWaiting');
+        }
+      });
+    });
+  }).catch(() => {});
 }
 
 // ============ Start ============
