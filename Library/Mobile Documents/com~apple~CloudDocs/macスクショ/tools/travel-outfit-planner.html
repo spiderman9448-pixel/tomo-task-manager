@@ -1,0 +1,2904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#333333">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="여행⭐︎준비">
+<title>旅行コーデプランナー</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; width: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif; background: #f5f3ee; margin: 0; padding: 0; -webkit-text-size-adjust: 100%; font-size: 18px; letter-spacing: 0.3px; line-height: 1.6; }
+  .cell-img { width: 100%; max-height: 200px; object-fit: contain; cursor: pointer; border-radius: 6px; }
+  .cell-box { min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px; cursor: pointer; transition: background .15s; border-radius: 8px; }
+  .cell-box:active { background: rgba(0,0,0,.06); }
+  .cell-box.empty { border: 1.5px dashed #ccc; color: #aaa; }
+  .temp-input { text-align: center; background: transparent; border: none; font-size: .8rem; color: #d4a017; font-weight: 600; outline: none; width: 80px; }
+  .temp-input::placeholder { color: #ccc; }
+
+  /* Day tabs (horizontal scroll) */
+  .day-tabs { display: flex; gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0; scroll-snap-type: x mandatory; background: #fff; border-bottom: 2px solid #eee; }
+  .day-tabs::-webkit-scrollbar { display: none; }
+  .day-tab { flex: 1; min-width: 0; padding: 12px 6px 10px; font-size: .95rem; font-weight: 600; cursor: pointer; border: none; background: transparent; white-space: nowrap; min-height: 48px; scroll-snap-align: start; text-align: center; line-height: 1.3; color: #999; border-bottom: 3px solid transparent; transition: all .2s; position: relative; }
+  .day-tab.active { color: #d4a017; border-bottom-color: #d4a017; background: rgba(212, 160, 23, 0.08); }
+  .day-tab .day-num { font-size: .75rem; color: #bbb; margin-top: 1px; }
+  .day-tab.active .day-num { color: #d4a017; font-weight: 700; }
+
+  /* Outfit grid scrollbar */
+  .outfit-grid-scroll { scrollbar-width: thin; scrollbar-color: #c5b9a8 transparent; }
+  .outfit-grid-scroll::-webkit-scrollbar { height: 6px; }
+  .outfit-grid-scroll::-webkit-scrollbar-track { background: #f0ebe5; border-radius: 3px; }
+  .outfit-grid-scroll::-webkit-scrollbar-thumb { background: #c5b9a8; border-radius: 3px; }
+
+  /* Day card */
+  .day-card { background: #fff; border-radius: 16px; margin: 0 12px 8px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .day-card-header { text-align: center; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #f0ebe5; }
+  .day-card-header .day-title { font-weight: 700; font-size: 20px; }
+  .day-card-header .day-sub { font-size: .85rem; color: #999; margin-top: 4px; }
+  .category-row { margin-bottom: 0; padding: 0; border-bottom: none; }
+  .category-row:last-child { margin-bottom: 0; }
+  .cat-card { background: #fafaf8; border-radius: 14px; padding: 14px; margin-bottom: 10px; border: 1px solid #f0ebe5; }
+  .cat-card:last-child { margin-bottom: 0; }
+  .category-label { font-weight: 700; font-size: 1rem; color: #555; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .category-content { width: 100%; }
+
+  /* Export-only grid (hidden, for image export) */
+  .grid-table { display: grid; gap: 1px; background: #d5cdc5; border-radius: 10px; overflow: hidden; }
+  .grid-cell { background: #fff; padding: 2px; }
+  .export-grid-wrap { position: absolute; left: -9999px; top: 0; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+  .modal-content { background: #fff; border-radius: 20px 20px 0 0; padding: 20px 16px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); width: 100%; max-width: 500px; max-height: 85vh; overflow-y: auto; animation: slideUp .25s ease-out; box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .modal-content input, .modal-content textarea, .modal-content select { -webkit-user-select: text; user-select: text; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .btn { padding: 10px 16px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; font-size: 1rem; min-height: 44px; }
+  .btn-primary { background: #5a5245; color: #fff; }
+  .btn-primary:active { background: #555; }
+  .btn-danger { background: #d96b6b; color: #fff; }
+  .btn-danger:active { background: #c0392b; }
+  .btn-outline { background: #fff; border: 2px solid #333; color: #333; }
+  .btn-outline:active { background: #f5f5f5; }
+  .memo-text { font-size: 1rem; color: #666; text-align: center; word-break: break-all; margin-top: 4px; }
+  .plan-card { background: #fff; border-radius: 12px; padding: 14px; cursor: pointer; transition: all .15s; border: 2px solid transparent; }
+  .plan-card:active { border-color: #333; }
+  .plan-card.active { border-color: #333; background: #f5f5f5; }
+  #exportTarget .cell-box { cursor: default; }
+  .add-photo-btn { display: flex; flex-direction: column; align-items: center; gap: 1px; color: #aaa; font-size: .6rem; }
+  .add-photo-btn svg { width: 20px; height: 20px; }
+  .header-bar { background: #4a443c; color: #fff; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top)); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .packing-section { background: #fff; border-radius: 12px; margin: 8px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .packing-member { margin-bottom: 16px; }
+  .packing-member-header { font-weight: 700; font-size: 1rem; color: #e67e22; padding: 8px 0; display: flex; align-items: center; justify-content: space-between; }
+  .packing-cat-header { font-weight: 700; font-size: 1rem; color: #5a5245; margin-top: 8px; margin-bottom: 2px; padding: 9px 12px; background: #ede8df; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; letter-spacing: .5px; border: 1px solid #ddd5c8; }
+  .packing-item { display: flex; align-items: center; gap: 6px; padding: 5px 4px; border-bottom: 1px solid #f0ebe5; min-height: 36px; }
+  .packing-item:last-child { border-bottom: none; }
+  .packing-item.checked .item-name { text-decoration: line-through; color: #aaa; }
+  .packing-item.checked .item-note { color: #ccc; }
+  .packing-item input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; }
+  .packing-item .item-content { flex: 1; cursor: pointer; min-width: 0; }
+  .packing-item .item-name { font-size: 1rem; display: flex; align-items: center; gap: 4px; }
+  .packing-item .item-note { font-size: .95rem; color: #999; margin-top: 2px; }
+  .packing-item .item-important { color: #d96b6b; font-size: .9rem; }
+  .packing-item .item-actions { display: flex; gap: 2px; flex-shrink: 0; }
+  .packing-item .act-btn { color: #ccc; cursor: pointer; font-size: 1.1rem; padding: 4px 6px; border: none; background: none; min-width: 32px; min-height: 32px; display: flex; align-items: center; justify-content: center; }
+  .packing-item .act-btn:active { color: #333; }
+  .packing-item.sub-item { padding-left: 28px; }
+  .packing-progress { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+  .packing-progress-bar { height: 100%; background: linear-gradient(90deg, #d4a017, #f0c040); border-radius: 3px; transition: width .3s; }
+  .add-item-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .add-item-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; }
+  .add-item-row select { padding: 10px 8px; border: 1px solid #ddd; border-radius: 10px; font-size: .85rem; background: #fff; }
+  .add-item-row .btn { flex-shrink: 0; }
+  .member-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; margin-bottom: 8px; }
+  .member-tab { padding: 8px 16px; border-radius: 20px; font-size: 1rem; font-weight: 600; cursor: pointer; border: 2px solid #ddd; background: #fff; white-space: nowrap; min-height: 40px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .member-tab.active { font-weight: 700; }
+  .member-tab.add-tab { border-style: dashed; color: #aaa; }
+  .category-colors { display: flex; gap: 2px; }
+  .cat-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .img-container { position: relative; }
+  .img-container .remove-btn { position: absolute; top: -4px; right: -4px; width: 20px; height: 20px; border-radius: 50%; background: #d96b6b; color: #fff; border: none; font-size: 12px; cursor: pointer; display: none; align-items: center; justify-content: center; line-height: 1; }
+  .img-container:hover .remove-btn { display: flex; }
+  .drag-handle { cursor: grab; color: #ccc; padding: 0 4px; font-size: 1rem; touch-action: none; user-select: none; }
+  .drag-handle:active { color: #999; }
+  .sortable-ghost { opacity: 0.4; background: #fdf6e3; }
+  .sortable-chosen { box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .cat-drag-handle { cursor: grab; }
+  .welcome-card { background: #fff; border-radius: 16px; margin: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.08); text-align: center; }
+  .welcome-card h2 { font-size: 1.3rem; margin-bottom: 8px; }
+  .welcome-card p { color: #888; font-size: .9rem; margin-bottom: 16px; }
+  .welcome-steps { text-align: left; margin: 16px 0; }
+  .welcome-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+  .welcome-step .step-num { width: 28px; height: 28px; border-radius: 50%; background: #333; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; flex-shrink: 0; }
+  .welcome-step .step-text { font-size: .9rem; color: #555; padding-top: 3px; }
+  .empty-day-hint { text-align: center; padding: 20px; color: #bbb; font-size: .85rem; }
+  .category-row .cell-box.empty { min-height: 50px; border-color: #ddd; border-radius: 12px; background: #fafafa; }
+  .category-row .cell-box.empty:active { border-color: #333; background: #f0ede8; }
+</style>
+</head>
+<body class="min-h-screen" style="padding-bottom:calc(60px + env(safe-area-inset-bottom))">
+
+<!-- Header -->
+<div class="header-bar" id="headerBar">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-bold" id="tripTitle">旅行コーデプランナー</h1>
+      <p class="text-xs opacity-80" id="tripDateRange"></p>
+    </div>
+    <div class="flex gap-1">
+      <button onclick="goHome()" class="p-2 rounded-full hover:bg-white/20" title="ホーム" id="homeBtn" style="display:none">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>
+      </button>
+      <button onclick="showExportModal()" class="p-2 rounded-full hover:bg-white/20" title="設定">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+      <button onclick="copyRoomLink()" class="p-2 rounded-full hover:bg-white/20" title="共有" id="shareBtn" style="display:none">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Day Tabs -->
+<div class="day-tabs" id="dayTabs"></div>
+<!-- Day Card -->
+<div id="dayCard"></div>
+<!-- Hidden export grid -->
+<div class="export-grid-wrap"><div id="outfitGrid"></div></div>
+
+<!-- Packing List -->
+<div id="packingList"></div>
+
+<!-- Bottom Tab Bar -->
+<div id="bottomTabBar" class="fixed bottom-0 left-0 right-0 bg-white z-50" style="padding-bottom:env(safe-area-inset-bottom);display:none;border-top:1px solid #ddd">
+  <div style="display:flex;max-width:400px;margin:0 auto;gap:40px;justify-content:center;padding:0 20px">
+    <button onclick="switchTab('packing')" id="tabPacking" style="padding:14px 24px;border:none;background:none;cursor:pointer;font-size:16px;font-weight:500;color:#aaa;border-bottom:3px solid transparent;white-space:nowrap">🧳 持ち物</button>
+    <button onclick="switchTab('outfit')" id="tabOutfit" style="padding:14px 24px;border:none;background:none;cursor:pointer;font-size:16px;font-weight:700;color:#5a5245;border-bottom:3px solid #5a5245;white-space:nowrap">👗 コーデ</button>
+  </div>
+</div>
+
+<!-- Modals Container -->
+<div id="modalContainer"></div>
+
+<script>
+// ============ Firebase Setup ============
+const firebaseConfig = {
+  apiKey: "AIzaSyDsIEl76iezrPX7S1MuFt_uW8dn-GIpipc",
+  authDomain: "travel-outfit-planner-cf255.firebaseapp.com",
+  databaseURL: "https://travel-outfit-planner-cf255-default-rtdb.firebaseio.com",
+  projectId: "travel-outfit-planner-cf255",
+  storageBucket: "travel-outfit-planner-cf255.firebasestorage.app",
+  messagingSenderId: "1015256292582",
+  appId: "1:1015256292582:web:342b95c862bb719fe4ef27"
+};
+firebase.initializeApp(firebaseConfig);
+const rtdb = firebase.database();
+const auth = firebase.auth();
+
+let roomCode = null; // current room code
+let roomRef = null;  // firebase ref for current room
+
+// ============ Firebase Data Layer ============
+// Wraps Firebase RTDB to provide simple async CRUD like the old Dexie API
+const db = {
+  plans: {
+    async get(id) { const s = await roomRef.child('plan').once('value'); return s.val(); },
+    async update(id, data) { await roomRef.child('plan').update(data); },
+    async toArray() { const p = await roomRef.child('plan').once('value'); return p.val() ? [p.val()] : []; }
+  },
+  cells: {
+    async where(query) {
+      const snap = await roomRef.child('cells').once('value');
+      const all = [];
+      snap.forEach(c => { all.push({ id: c.key, ...c.val() }); });
+      if (typeof query === 'string') {
+        const field = query;
+        return {
+          equals: (val) => ({
+            toArray: () => all.filter(i => i[field] === val),
+            async delete() { for (const i of all.filter(x => x[field] === val)) await roomRef.child('cells/' + i.id).remove(); }
+          })
+        };
+      }
+      const filtered = all.filter(item => {
+        return Object.keys(query).every(k => item[k] === query[k] || (k === 'planId' && true));
+      });
+      return {
+        toArray: () => filtered,
+        first: () => filtered[0] || null,
+        async delete() { for (const i of filtered) await roomRef.child('cells/' + i.id).remove(); }
+      };
+    },
+    async add(data) { const ref = roomRef.child('cells').push(); await ref.set(data); return ref.key; },
+    async get(id) { const s = await roomRef.child('cells/' + id).once('value'); return s.val() ? { id, ...s.val() } : null; },
+    async update(id, data) { await roomRef.child('cells/' + id).update(data); },
+    async delete(id) { await roomRef.child('cells/' + id).remove(); }
+  },
+  packingItems: {
+    async where(query) {
+      const snap = await roomRef.child('packingItems').once('value');
+      const all = [];
+      snap.forEach(c => { all.push({ id: c.key, ...c.val() }); });
+      let filtered;
+      if (typeof query === 'string') {
+        // where('field').equals(val) pattern - return chainable
+        const field = query;
+        return {
+          equals: (val) => ({
+            toArray: () => all.filter(i => i[field] === val),
+            async delete() { for (const i of all.filter(x => x[field] === val)) await roomRef.child('packingItems/' + i.id).remove(); }
+          })
+        };
+      }
+      filtered = all.filter(item => {
+        return Object.keys(query).every(k => {
+          if (k === 'planId') return true;
+          return item[k] === query[k];
+        });
+      });
+      return {
+        toArray: () => filtered,
+        first: () => filtered[0] || null,
+        filter: (fn) => ({ toArray: () => filtered.filter(fn) }),
+        async delete() { for (const i of filtered) await roomRef.child('packingItems/' + i.id).remove(); }
+      };
+    },
+    async add(data) { const ref = roomRef.child('packingItems').push(); await ref.set(data); return ref.key; },
+    async bulkAdd(items) { for (const item of items) await this.add(item); },
+    async get(id) { const s = await roomRef.child('packingItems/' + id).once('value'); return s.val() ? { id, ...s.val() } : null; },
+    async update(id, data) { await roomRef.child('packingItems/' + id).update(data); },
+    async delete(id) { await roomRef.child('packingItems/' + id).remove(); },
+    async bulkDelete(ids) { for (const id of ids) await this.delete(id); }
+  }
+};
+
+const CATEGORIES = [
+  { key: 'accessory', label: 'その他', color: '#e67e22' },
+  { key: 'top', label: '上', color: '#5a9fc4' },
+  { key: 'bottom', label: '下', color: '#2ecc71' },
+  { key: 'shoes', label: '靴', color: '#9b59b6' }
+];
+
+let currentPlanId = 1;
+let currentPlan = null;
+
+// Helper: get all items from a collection
+async function getAllCells() {
+  if (_cachedCells) return _cachedCells;
+  if (!roomRef) return [];
+  const snap = await roomRef.child('cells').once('value');
+  const all = [];
+  snap.forEach(c => { all.push({ id: c.key, ...c.val() }); });
+  _cachedCells = all;
+  return all;
+}
+async function getCellByDayCategory(day, category) {
+  const all = await getAllCells();
+  return all.find(c => c.day === day && c.category === category && (!c.member || c.member === currentMember)) || null;
+}
+async function upsertCell(day, category, data) {
+  let cell = await getCellByDayCategory(day, category);
+  if (cell) {
+    await roomRef.child('cells').child(cell.id).update(data);
+    return { ...cell, ...data };
+  } else {
+    const newData = { planId: currentPlanId, day, category, member: currentMember, images: [], memo: '', comments: [], ...data };
+    const ref = await roomRef.child('cells').push(newData);
+    return { id: ref.key, ...newData };
+  }
+}
+async function getAllPackingItems() {
+  if (_cachedPackingItems) return _cachedPackingItems;
+  if (!roomRef) return [];
+  const snap = await roomRef.child('packingItems').once('value');
+  const all = [];
+  snap.forEach(c => { all.push({ id: c.key, ...c.val() }); });
+  _cachedPackingItems = all;
+  return all;
+}
+async function getRoomMembers() {
+  if (_cachedMembers && _cachedMembers.length > 0) return _cachedMembers;
+  if (!roomRef) return ['自分'];
+  const snap = await roomRef.child('members').once('value');
+  const members = snap.val();
+  if (!members || Object.keys(members).length === 0) return ['自分'];
+  _cachedMembers = Object.values(members).sort((a, b) => a.order - b.order).map(m => m.name);
+  return _cachedMembers;
+}
+async function addRoomMember(name) {
+  if (!roomRef || !name) return;
+  const existing = await getRoomMembers();
+  if (existing.includes(name)) return;
+  await roomRef.child('members').push({ name: name, order: existing.length });
+}
+async function removeRoomMember(name) {
+  if (!roomRef) return;
+  const snap = await roomRef.child('members').once('value');
+  snap.forEach(c => { if (c.val().name === name) roomRef.child('members').child(c.key).remove(); });
+}
+async function renameRoomMember(oldName, newName) {
+  if (!roomRef) return;
+  const snap = await roomRef.child('members').once('value');
+  snap.forEach(c => { if (c.val().name === oldName) roomRef.child('members').child(c.key).update({ name: newName }); });
+}
+
+// ============ Init ============
+async function init() {
+  try {
+    // Sign in anonymously
+    await auth.signInAnonymously();
+  } catch(e) {
+    console.error('Auth error:', e);
+  }
+
+  // Check URL for room code
+  const params = new URLSearchParams(location.search);
+  const urlRoom = params.get('room');
+  const savedRoom = localStorage.getItem('roomCode');
+
+  try {
+    if (urlRoom) {
+      await joinRoom(urlRoom);
+      const myName = localStorage.getItem('myMemberName');
+      if (myName) {
+        await autoAddMember(myName);
+      } else {
+        showNamePrompt(urlRoom);
+      }
+    } else if (savedRoom) {
+      await joinRoom(savedRoom);
+      const myName = localStorage.getItem('myMemberName');
+      if (myName) await autoAddMember(myName);
+    } else {
+      showWelcome();
+    }
+  } catch(e) {
+    console.error('Init error:', e);
+    showWelcome();
+  }
+}
+
+// ---- Room History ----
+function getRoomHistory() {
+  return JSON.parse(localStorage.getItem('roomHistory') || '[]');
+}
+function saveRoomToHistory(code, planName, startDate, days) {
+  let history = getRoomHistory();
+  history = history.filter(h => h.code !== code);
+  history.unshift({ code, name: planName || '未設定', startDate: startDate || '', days: days || 0, updatedAt: new Date().toISOString() });
+  // Keep max 10
+  if (history.length > 10) history = history.slice(0, 10);
+  localStorage.setItem('roomHistory', JSON.stringify(history));
+}
+function removeRoomFromHistory(code) {
+  let history = getRoomHistory().filter(h => h.code !== code);
+  localStorage.setItem('roomHistory', JSON.stringify(history));
+}
+
+function showNamePrompt(roomCode) {
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">ようこそ！</h3>
+    </div>
+    <p class="text-sm text-gray-500 mb-3">あなたの名前を入力してメンバーに追加</p>
+    <input id="promptName" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" placeholder="例: 토모미" autofocus />
+    <button class="btn btn-primary w-full mt-3" onclick="submitNamePrompt()">参加する</button>
+  `);
+}
+async function submitNamePrompt() {
+  const name = document.getElementById('promptName').value.trim();
+  if (!name) { alert('名前を入力してください'); return; }
+  localStorage.setItem('myMemberName', name);
+  closeModal();
+  await autoAddMember(name);
+}
+
+async function autoAddMember(name) {
+  if (!roomRef || !name) return;
+  const members = await getRoomMembers();
+  if (members.includes(name)) {
+    currentMember = name;
+    renderGrid();
+    renderPackingList();
+    return;
+  }
+  await addRoomMember(name);
+  // Add with default items
+  const DEFAULT_PACKING_NEW = [
+    { cat: '朝に準備する物', items: [
+      { name: 'スマホ' }, { name: '充電器' }, { name: 'メイク道具' }
+    ]},
+    { cat: 'キャリーケース', items: [
+      { name: 'パスポートのコピー', important: true }, { name: '着替え' }, { name: '靴下' }, { name: 'パジャマ' }
+    ]},
+    { cat: '(斜めがけ) 機内持ち込み', items: [
+      { name: 'パスポート', important: true }, { name: 'お金・お財布' }, { name: 'モバイルバッテリー' }, { name: 'ハンカチ・ティッシュ' }
+    ]}
+  ];
+  let order = 0;
+  for (const g of DEFAULT_PACKING_NEW) {
+    for (const item of g.items) {
+      await roomRef.child('packingItems').push({
+        planId: currentPlanId, member: name, category: g.cat,
+        name: item.name, checked: false, important: item.important || false, note: '', parentId: null, sortOrder: order++
+      });
+    }
+  }
+  currentMember = name;
+  renderGrid();
+  renderPackingList();
+}
+
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+async function createRoom() {
+  roomCode = generateRoomCode();
+  roomRef = rtdb.ref('rooms/' + roomCode);
+  localStorage.setItem('roomCode', roomCode);
+  // Set up real-time listener
+  setupRealtimeListener();
+  return roomCode;
+}
+
+async function joinRoom(code) {
+  try {
+    code = code.toUpperCase().trim();
+    roomCode = code;
+    roomRef = rtdb.ref('rooms/' + roomCode);
+    localStorage.setItem('roomCode', roomCode);
+
+    // Check if room has a plan
+    const planSnap = await roomRef.child('plan').once('value');
+
+    // Clean up _temp items
+    const allSnap = await roomRef.child('packingItems').once('value');
+    if (allSnap.val()) {
+      allSnap.forEach(c => {
+        const v = c.val();
+        if (v && (v.category === '_temp' || v.name === '_temp')) {
+          roomRef.child('packingItems/' + c.key).remove();
+        }
+      });
+    }
+
+    if (planSnap.val() && planSnap.val().name) {
+      currentPlan = planSnap.val();
+      setupRealtimeListener();
+      renderHeader();
+      renderGrid();
+      renderPackingList();
+    } else {
+      setupRealtimeListener();
+      showSettings();
+    }
+  } catch(e) {
+    console.error('joinRoom error:', e);
+    localStorage.removeItem('roomCode');
+    roomRef = null;
+    roomCode = null;
+    showWelcome();
+  }
+}
+
+let _cachedPackingItems = null;
+let _cachedMembers = null;
+let _cachedCells = null;
+
+function setupRealtimeListener() {
+  // Listen for plan changes
+  roomRef.child('plan').on('value', (snap) => {
+    if (snap.val()) {
+      currentPlan = snap.val();
+      renderHeader();
+      renderGrid();
+    }
+  });
+  // Listen for cell changes - cache locally
+  roomRef.child('cells').on('value', (snap) => {
+    const all = [];
+    if (snap.val()) snap.forEach(c => { all.push({ id: c.key, ...c.val() }); });
+    _cachedCells = all;
+    renderGrid();
+  });
+  // Listen for packing item changes - cache locally
+  roomRef.child('packingItems').on('value', (snap) => {
+    const all = [];
+    if (snap.val()) snap.forEach(c => { all.push({ id: c.key, ...c.val() }); });
+    _cachedPackingItems = all;
+    renderPackingList();
+  });
+  // Listen for member changes - cache locally
+  roomRef.child('members').on('value', (snap) => {
+    const members = snap.val();
+    if (members) {
+      _cachedMembers = Object.values(members).sort((a, b) => a.order - b.order).map(m => m.name);
+    } else {
+      _cachedMembers = [];
+    }
+    renderPackingList();
+    renderGrid();
+  });
+}
+
+function leaveRoom() {
+  closeModal();
+  if (roomRef) roomRef.off();
+  roomCode = null;
+  roomRef = null;
+  _cachedPackingItems = null;
+  _cachedMembers = null;
+  _cachedCells = null;
+  localStorage.removeItem('roomCode');
+  showWelcome();
+}
+
+function deleteRoom() {
+  closeModal();
+  showModal(`
+    <div class="text-center py-4">
+      <p class="font-bold text-lg mb-2">ルームを削除</p>
+      <p class="text-gray-500 mb-4">すべてのデータを完全に削除しますか？<br>この操作は取り消せません。</p>
+      <div class="flex gap-3">
+        <button class="btn btn-outline flex-1" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-danger flex-1" onclick="confirmDeleteRoom()">削除する</button>
+      </div>
+    </div>
+  `);
+}
+async function confirmDeleteRoom() {
+  closeModal();
+  if (roomRef) {
+    await roomRef.remove();
+    roomRef.off();
+  }
+  removeRoomFromHistory(roomCode);
+  localStorage.removeItem('roomCode');
+  roomCode = null;
+  roomRef = null;
+  currentPlan = null;
+  showWelcome();
+}
+
+function showWelcome() {
+  document.getElementById('tripTitle').textContent = '旅行コーデプランナー';
+  document.getElementById('tripDateRange').textContent = '';
+  document.getElementById('dayTabs').innerHTML = '';
+
+  // Build room history HTML
+  const history = getRoomHistory();
+  let historyHtml = '';
+  if (history.length > 0) {
+    historyHtml = `
+      <div style="margin-top:20px;text-align:left">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px;color:#555">最近のルーム</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${history.map(h => {
+            let tripDateStr = '';
+            if (h.startDate) {
+              const s = new Date(h.startDate);
+              const e = new Date(s); e.setDate(e.getDate() + (h.days || 1) - 1);
+              tripDateStr = `${s.getMonth()+1}/${s.getDate()} - ${e.getMonth()+1}/${e.getDate()} (${h.days || 1}日間)`;
+            }
+            return `<div style="display:flex;align-items:center;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 16px;cursor:pointer;gap:12px" onclick="joinRoom('${h.code}')">
+              <div style="width:44px;height:44px;border-radius:10px;background:#f0ebe3;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0">🧳</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:700;font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(h.name)}</div>
+                <div style="font-size:.85rem;color:#999">${tripDateStr}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('dayCard').innerHTML = `
+    <div class="welcome-card">
+      <img src="character.png.PNG" alt="mascot" style="width:120px;margin:0 auto 12px;display:block" />
+      <h2>旅行コーデプランナー</h2>
+      <p>旅行の服装を日別に計画して<br>リアルタイムで共有!</p>
+      <button class="btn btn-primary w-full mb-3" style="font-size:1.05rem;padding:14px" onclick="showCreateRoom()">
+        新しいルームを作成
+      </button>
+      <button class="btn btn-outline w-full" style="font-size:1.05rem;padding:14px" onclick="showJoinRoom()">
+        コードで参加する
+      </button>
+      ${historyHtml}
+    </div>
+  `;
+  document.getElementById('packingList').innerHTML = '';
+}
+
+function goHome() {
+  // Disconnect from current room and go back to welcome
+  if (roomRef) {
+    roomRef.off();
+  }
+  roomRef = null;
+  currentPlan = null;
+  currentPlanId = null;
+  currentRoomCode = null;
+  localStorage.removeItem('roomCode');
+  const tabBar = document.getElementById('bottomTabBar');
+  if (tabBar) tabBar.style.display = 'none';
+  document.getElementById('homeBtn').style.display = 'none';
+  document.getElementById('shareBtn').style.display = 'none';
+  showWelcome();
+}
+
+function showCreateRoom() {
+  showSettings(); // Will create room + plan together
+}
+
+function showJoinRoom() {
+  const savedName = localStorage.getItem('myMemberName') || '';
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">ルームに参加</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">あなたの名前</label>
+      <input id="joinName" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" value="${escapeHtml(savedName)}" placeholder="例: 토모미" />
+    </div>
+    <div class="mb-4">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">ルームコード（6文字）</label>
+      <input id="joinCode" type="text" class="w-full p-3 border rounded-lg text-center" style="font-size:24px;letter-spacing:8px;text-transform:uppercase" maxlength="6" placeholder="ABC123" />
+    </div>
+    <button class="btn btn-primary w-full" onclick="doJoinRoom()">参加する</button>
+  `);
+}
+
+async function doJoinRoom() {
+  const name = document.getElementById('joinName').value.trim();
+  const code = document.getElementById('joinCode').value.toUpperCase().trim();
+  if (!name) { alert('名前を入力してください'); return; }
+  if (code.length !== 6) { alert('6文字のコードを入力してください'); return; }
+  localStorage.setItem('myMemberName', name);
+  closeModal();
+  await joinRoom(code);
+  // Auto-add as member if not already exists
+  await autoAddMember(name);
+}
+
+// ============ Plan CRUD ============
+async function createNewPlan(name, startDate, days) {
+  // Create room if not in one
+  if (!roomRef) {
+    await createRoom();
+  }
+  const planData = { name, startDate, days, temps: {}, createdAt: new Date().toISOString() };
+  await roomRef.child('plan').set(planData);
+  currentPlan = planData;
+  currentDay = 0;
+
+  // Show room code to user
+  showModal(`
+    <div class="text-center">
+      <h3 class="font-bold text-lg mb-2">ルームが作成されました!</h3>
+      <p class="text-sm text-gray-500 mb-3">このコードを友達に送って一緒に編集しよう</p>
+      <div style="font-size:2rem;letter-spacing:8px;font-weight:700;background:#f5f5f5;padding:16px;border-radius:12px;margin-bottom:12px">${roomCode}</div>
+      <button class="btn btn-primary w-full mb-2" onclick="copyRoomLink()">リンクをコピー</button>
+      <button class="btn btn-outline w-full" onclick="closeModal()">閉じる</button>
+    </div>
+  `);
+
+  renderHeader();
+  renderGrid();
+  renderPackingList();
+}
+
+function copyRoomLink() {
+  if (!roomCode) return;
+  const url = location.origin + location.pathname + '?room=' + roomCode;
+  const shareText = `旅行コーデプランナーに参加しよう！\nルームコード: ${roomCode}\n${url}`;
+
+  // Try Web Share API first (works on mobile HTTPS)
+  if (navigator.share) {
+    navigator.share({ title: '旅行コーデプランナー', text: shareText }).catch(() => {});
+    return;
+  }
+
+  // Fallback: show modal with copy options
+  showShareModal();
+}
+
+function copyTextToClipboard(text, successMsg) {
+  // Use a hidden textarea for reliable copying
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    alert(successMsg || 'コピーしました！');
+  } catch(e) {
+    prompt('コピーしてください:', text);
+  }
+  document.body.removeChild(ta);
+}
+
+function copyRoomCode() {
+  if (!roomCode) return;
+  copyTextToClipboard(roomCode, 'ルームコードをコピーしました！');
+}
+
+function showShareModal() {
+  if (!roomCode) return;
+  const url = location.origin + location.pathname + '?room=' + roomCode;
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">共有</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <p class="text-sm text-gray-500 mb-3">ルームコードを友達に送ってください</p>
+    <div onclick="copyRoomCode()" style="cursor:pointer;text-align:center;font-size:2rem;letter-spacing:8px;font-weight:700;background:#f5f5f5;padding:16px;border-radius:12px;margin-bottom:8px;border:2px solid #ddd">${roomCode}</div>
+    <p style="text-align:center;font-size:.8rem;color:#999;margin-bottom:12px">↑ タップでコードをコピー</p>
+    <button class="btn btn-primary w-full mb-2" onclick="copyTextToClipboard('旅行コーデプランナーに参加しよう！\\nルームコード: ${roomCode}\\n${url}', 'コピーしました！友達に送ってください')">招待メッセージをコピー</button>
+    <button class="btn btn-outline w-full" onclick="copyTextToClipboard('${url}', 'リンクをコピーしました！')">リンクだけコピー</button>
+  `);
+}
+
+async function deletePlan(id) {
+  if (!roomRef) return;
+  if (!confirm('このルームのすべてのデータを削除しますか？')) return;
+  await roomRef.remove();
+  leaveRoom();
+}
+
+// ============ Render ============
+function renderHeader() {
+  if (!currentPlan) return;
+  document.getElementById('tripTitle').textContent = currentPlan.name;
+  const start = new Date(currentPlan.startDate);
+  const end = new Date(start);
+  end.setDate(end.getDate() + currentPlan.days - 1);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  document.getElementById('tripDateRange').textContent = `${fmt(start)} - ${fmt(end)} (${currentPlan.days}日間)`;
+  // Save to room history
+  if (roomCode) saveRoomToHistory(roomCode, currentPlan.name, currentPlan.startDate, currentPlan.days);
+  const shareBtn = document.getElementById('shareBtn');
+  if (shareBtn) shareBtn.style.display = roomCode ? 'block' : 'none';
+  const homeBtn = document.getElementById('homeBtn');
+  if (homeBtn) homeBtn.style.display = 'block';
+  const tabBar = document.getElementById('bottomTabBar');
+  if (tabBar) tabBar.style.display = 'flex';
+}
+
+let currentDay = 0;
+
+async function renderGrid() {
+  if (!currentPlan) return;
+  if (currentDay >= currentPlan.days) currentDay = 0;
+
+  // Get members from dedicated members list in Firebase
+  const outfitMembers = await getRoomMembers();
+  if (!currentMember || !outfitMembers.includes(currentMember)) {
+    currentMember = outfitMembers[0];
+  }
+
+  const cells = await getAllCells();
+  const cellMap = {};
+  cells.forEach(c => {
+    // Support both old (no member) and new (with member) format
+    const memberMatch = !c.member || c.member === currentMember;
+    if (memberMatch) cellMap[`${c.day}-${c.category}`] = c;
+  });
+
+  const start = new Date(currentPlan.startDate);
+  const dayNames = ['日','月','火','水','木','金','土'];
+
+  // ---- Day Tabs ----
+  let tabsHtml = '';
+  for (let d = 0; d < currentPlan.days; d++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + d);
+    const dayName = dayNames[date.getDay()];
+    const dayColor = date.getDay() === 0 ? '#d96b6b' : date.getDay() === 6 ? '#5a9fc4' : '';
+    const isActive = d === currentDay;
+    const dateColor = dayColor || '#333';
+    const borderColor = isActive ? '#d4a017' : 'transparent';
+    tabsHtml += `<div class="day-tab ${isActive ? 'active' : ''}" onclick="switchDay(${d})" style="border-bottom-color:${borderColor}">
+      <div style="font-size:.85rem;color:${dateColor}">${date.getMonth()+1}/${date.getDate()}</div>
+      <div style="font-size:.7rem;font-weight:700;letter-spacing:1px;color:${dateColor}">(${dayName})</div>
+      <div class="day-num">${d+1}日目</div>
+    </div>`;
+  }
+  document.getElementById('dayTabs').innerHTML = ''; // Grid view has dates in table header
+
+  // ---- Modern Grid View ----
+  const catIcons = { accessory: '🧥', top: '👚', bottom: '👖', shoes: '👟' };
+  const days = currentPlan.days;
+  const GRID_CATS = [...CATEGORIES, { key: 'memo', label: 'メモ', color: '#999' }];
+  // Calculate row height to fill screen dynamically
+  const headerEl = document.getElementById('headerBar');
+  const tabBarEl = document.getElementById('bottomTabBar');
+  const headerH = headerEl ? headerEl.offsetHeight : 80;
+  const tabBarH = tabBarEl ? tabBarEl.offsetHeight : 50;
+  const memberTabH = 48;
+  const dateRowH = 76;
+  const memoRowH = 40;
+  const gap = 3;
+  const totalGaps = gap * (GRID_CATS.length + 1);
+  const availH = window.innerHeight - headerH - memberTabH - dateRowH - tabBarH - totalGaps - memoRowH - 8;
+  const catRowH = Math.max(Math.floor(availH / CATEGORIES.length), 60);
+
+  // Member tabs
+  let outfitMemberTabs = outfitMembers.map(m => {
+    const mc = getMemberColor(outfitMembers, m);
+    const isActive = m === currentMember;
+    const style = isActive ? `border-color:${mc.border};background:${mc.bg};color:${mc.text}` : '';
+    return `<div class="member-tab ${isActive ? 'active' : ''}" onclick="switchOutfitMember('${escapeHtml(m)}')" data-member="${escapeHtml(m)}" style="${style}"><span onclick="event.stopPropagation();showEditMemberModal('${escapeHtml(m)}')" style="margin-right:4px;font-size:12px;opacity:0.5">✏️</span>${escapeHtml(m)}</div>`;
+  }).join('');
+  outfitMemberTabs += `<div class="member-tab add-tab" onclick="showAddOutfitMemberModal()">+ 追加</div>`;
+
+  // Calculate cell width to fit screen perfectly
+  const screenW = window.innerWidth;
+  const margin = 6; // each side
+  const labelW = 36;
+  const colTotalGaps = gap * (days);
+  const cellW = Math.floor((screenW - margin * 2 - labelW - colTotalGaps) / days);
+
+  const outfitMC = getMemberColor(outfitMembers, currentMember);
+
+  let cardHtml = `<div style="margin:0 ${margin}px 8px">
+    <div class="member-tabs" style="margin-bottom:10px">${outfitMemberTabs}</div>`;
+
+  // Date header row - use same flex layout as category rows
+  cardHtml += `<div style="display:flex;gap:${gap}px;margin-bottom:${gap}px">`;
+  cardHtml += `<div style="width:${labelW}px;flex-shrink:0"></div>`;
+  for (let d = 0; d < days; d++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + d);
+    const dow = dayNames[date.getDay()];
+    const dayColor = date.getDay() === 0 ? '#d96b6b' : date.getDay() === 6 ? '#5a9fc4' : '#444';
+    const tempVal = (currentPlan.temps && currentPlan.temps[d]) || '';
+    const isActive = d === currentDay;
+    const hdBg = isActive ? outfitMC.bg : '#fff';
+    const hdShadow = isActive ? 'box-shadow:0 0 0 2px ' + outfitMC.border : '';
+    cardHtml += `<div onclick="switchDay(${d})" style="flex:1;min-width:0;text-align:center;cursor:pointer;padding:6px 2px;border-radius:10px;background:${hdBg};${hdShadow}">
+      <div style="color:${dayColor};font-size:1rem;font-weight:800">${date.getMonth()+1}/${date.getDate()}</div>
+      <div style="color:${dayColor};font-size:.8rem;font-weight:600">(${dow})</div>
+      <div style="font-size:.7rem;color:#bbb;margin-top:1px">${d+1}日目</div>
+      ${tempVal ? `<div style="font-size:.7rem;color:#e67e22;font-weight:600">${escapeHtml(tempVal)}</div>` : ''}
+    </div>`;
+  }
+  cardHtml += `</div>`;
+
+  // Category rows
+  for (const cat of GRID_CATS) {
+    const icon = catIcons[cat.key] || '📝';
+    const isMemo = cat.key === 'memo';
+
+    cardHtml += `<div style="display:flex;gap:${gap}px;margin-bottom:${gap}px">`;
+
+    // Left label
+    cardHtml += `<div style="width:${labelW}px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 0">
+      <span style="font-size:1.1rem">${icon}</span>
+      <span style="font-size:.7rem;font-weight:700;color:#888;letter-spacing:1px">${cat.label}</span>
+    </div>`;
+
+    for (let d = 0; d < days; d++) {
+      const cell = isMemo ? cellMap[`${d}-memo`] : cellMap[`${d}-${cat.key}`];
+      const hasContent = isMemo ? !!(cell?.memo) : !!(cell && (cell.images?.length || cell.memo));
+      const isActive = d === currentDay;
+
+      const cellBg = isActive ? outfitMC.bg : '#fff';
+      const cellClick = isMemo ? `editDayMemo(${d})` : (hasContent ? `editCell(${d},'${cat.key}')` : `directAddPhoto(${d},'${cat.key}')`);
+
+      const hasImages = !isMemo && hasContent && cell.images && cell.images.length > 0;
+      const textOnly = !isMemo && hasContent && !hasImages && cell.memo;
+      const centerContent = isMemo || textOnly || !hasContent;
+
+      const rowH = isMemo ? memoRowH : catRowH;
+      const heightStyle = isMemo ? `min-height:${memoRowH}px` : `min-height:${rowH}px`;
+      cardHtml += `<div onclick="${cellClick}" style="flex:1;min-width:0;background:${cellBg};border-radius:8px;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:${centerContent ? 'center' : 'flex-start'};${heightStyle};padding:2px;transition:transform .1s" ontouchstart="this.style.transform='scale(0.96)'" ontouchend="this.style.transform=''">`;
+
+      if (isMemo) {
+        const memo = cell?.memo || '';
+        if (memo) {
+          cardHtml += `<div style="font-size:.75rem;color:#555;word-break:break-all;white-space:pre-wrap;text-align:center;padding:2px;font-weight:600">${escapeHtml(memo)}</div>`;
+        } else {
+          cardHtml += `<span style="font-size:.7rem;color:#ccc">メモ</span>`;
+        }
+      } else if (hasContent) {
+        const hasMemo = !!(cell.memo);
+        const imgMaxH = hasMemo ? Math.max(catRowH - 22, 50) : (catRowH - 6);
+        if (hasImages) {
+          for (const img of cell.images) {
+            cardHtml += `<img src="${img}" style="width:100%;max-height:${imgMaxH}px;object-fit:contain;border-radius:6px;display:block" />`;
+          }
+        }
+        if (hasMemo && !hasImages) {
+          // テキストのみ: 中央表示、セル高さに合わせてフォント自動縮小
+          const memoLen = cell.memo.length;
+          // セル高さから逆算して収まるフォントサイズを推定
+          const maxCharsPerLine = Math.floor(cellW / 10);
+          const lines = Math.ceil(memoLen / Math.max(maxCharsPerLine, 1));
+          const availH = catRowH - 8;
+          const idealLineH = Math.floor(availH / Math.max(lines, 1));
+          const fs = Math.min(Math.max(idealLineH * 0.7, 8), 13);
+          cardHtml += `<div style="font-size:${fs}px;color:#555;text-align:center;word-break:break-all;white-space:pre-wrap;padding:2px 3px;font-weight:600;line-height:1.3;display:flex;align-items:center;justify-content:center;flex:1;width:100%">${escapeHtml(cell.memo)}</div>`;
+        } else if (hasMemo && hasImages) {
+          cardHtml += `<div style="font-size:.55rem;color:#555;text-align:center;word-break:break-all;padding:0 2px;font-weight:600;line-height:1.1;overflow:hidden;max-height:16px">${escapeHtml(cell.memo)}</div>`;
+        }
+      } else {
+        cardHtml += `<div style="flex:1;display:flex;align-items:center;justify-content:center;opacity:.15"><span style="font-size:1.5rem">${icon}</span></div>`;
+      }
+
+      cardHtml += `</div>`;
+    }
+    cardHtml += `</div>`;
+  }
+
+  cardHtml += `</div>`;
+  document.getElementById('dayCard').innerHTML = cardHtml;
+
+  // Swipe gesture for day switching
+  initDaySwipe();
+
+  // ---- Export Grid (hidden) ----
+  renderExportGrid(cellMap, start, dayNames);
+  // Re-apply tab visibility
+  applyTabState();
+}
+
+function renderExportGrid(cellMap, start, dayNames) {
+  const container = document.getElementById('outfitGrid');
+  let html = `<div id="exportTarget" class="grid-table" style="grid-template-columns: 30px repeat(${currentPlan.days}, minmax(90px, 1fr)); grid-template-rows: auto repeat(${CATEGORIES.length}, auto); width: ${30 + currentPlan.days * 150}px;">`;
+  html += `<div class="grid-cell" style="background:#e8e0d8;"></div>`;
+  for (let d = 0; d < currentPlan.days; d++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + d);
+    const dayName = dayNames[date.getDay()];
+    const dayColor = date.getDay() === 0 ? '#d96b6b' : date.getDay() === 6 ? '#5a9fc4' : '#333';
+    const tempVal = (currentPlan.temps && currentPlan.temps[d]) || '';
+    html += `<div class="grid-cell" style="font-weight:700;text-align:center;padding:6px;background:#e8e0d8;">
+      <div style="color:${dayColor}">${date.getMonth()+1}/${date.getDate()}(${dayName})</div>
+      <div style="font-size:.7rem;color:#999">${d+1}日目</div>
+      ${tempVal ? `<div style="font-size:.75rem;color:#e67e22">${escapeHtml(tempVal)}</div>` : ''}
+    </div>`;
+  }
+  for (const cat of CATEGORIES) {
+    html += `<div class="grid-cell" style="display:flex;align-items:center;justify-content:center;background:#f9f6f3;font-weight:700;font-size:.8rem;color:#555;writing-mode:vertical-rl">${cat.label}</div>`;
+    for (let d = 0; d < currentPlan.days; d++) {
+      const cell = cellMap[`${d}-${cat.key}`];
+      html += `<div class="grid-cell" style="text-align:center;padding:4px;">`;
+      if (cell && cell.images && cell.images.length > 0) {
+        for (const img of cell.images) {
+          html += `<img src="${img}" style="width:100%;max-height:80px;object-fit:contain;border-radius:4px;" />`;
+        }
+      }
+      if (cell && cell.memo) {
+        html += `<div style="font-size:.65rem;color:#666;">${escapeHtml(cell.memo)}</div>`;
+      }
+      html += `</div>`;
+    }
+  }
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+async function editDayMemo(day) {
+  const cell = await getCellByDayCategory(day, 'memo');
+  const memo = cell?.memo || '';
+  const date = new Date(currentPlan.startDate);
+  date.setDate(date.getDate() + day);
+  const dayNames = ['日','月','火','水','木','金','土'];
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">${date.getMonth()+1}/${date.getDate()}(${dayNames[date.getDay()]}) メモ</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <textarea id="dayMemoText" class="w-full p-3 border rounded-lg" style="font-size:16px;min-height:120px" placeholder="その日のメモ...">${escapeHtml(memo)}</textarea>
+    <div class="flex gap-2 mt-3">
+      ${memo ? `<button class="btn btn-danger" onclick="clearDayMemo(${day})">クリア</button>` : ''}
+      <button class="btn btn-primary flex-1" onclick="saveDayMemo(${day})">保存</button>
+    </div>
+  `);
+}
+
+async function saveDayMemo(day) {
+  const memo = document.getElementById('dayMemoText').value;
+  await upsertCell(day, 'memo', { memo });
+  closeModal();
+  renderGrid();
+}
+
+async function clearDayMemo(day) {
+  const cell = await getCellByDayCategory(day, 'memo');
+  if (cell) await roomRef.child('cells').child(cell.id).remove();
+  closeModal();
+  renderGrid();
+}
+
+function switchOutfitMember(name) {
+  currentMember = name;
+  renderGrid();
+}
+
+function switchDay(d) {
+  if (d < 0 || d >= currentPlan.days) return;
+  currentDay = d;
+  renderGrid();
+  setTimeout(() => {
+    const tab = document.querySelector('.day-tab.active');
+    if (tab) tab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, 50);
+}
+
+let swipeHandlerAttached = false;
+function initDaySwipe() {
+  const el = document.getElementById('dayCard');
+  if (!el || !currentPlan || swipeHandlerAttached) return;
+  swipeHandlerAttached = true;
+  let startX = 0, startY = 0, swiping = false;
+  document.addEventListener('touchstart', e => {
+    const card = document.getElementById('dayCard');
+    if (!card || !card.contains(e.target)) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    swiping = true;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!swiping) return;
+    swiping = false;
+    if (!currentPlan) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0 && currentDay < currentPlan.days - 1) {
+        switchDay(currentDay + 1);
+      } else if (dx > 0 && currentDay > 0) {
+        switchDay(currentDay - 1);
+      }
+    }
+  }, { passive: true });
+}
+
+// ============ Cell Edit ============
+async function editCell(day, category) {
+  let cell = await getCellByDayCategory(day, category);
+  if (!cell) {
+    cell = { planId: currentPlanId, day, category, images: [], memo: '' };
+  }
+  // Get members for comment select
+  const allPI = await getAllPackingItems();
+  const mNames = [...new Set(allPI.map(i => i.member))];
+  if (mNames.length === 0) mNames.push('自分');
+  const savedName = localStorage.getItem('commentName') || mNames[0];
+
+  const catLabel = CATEGORIES.find(c => c.key === category)?.label || category;
+  const date = new Date(currentPlan.startDate);
+  date.setDate(date.getDate() + day);
+  const dayNames = ['日','月','火','水','木','金','土'];
+  const dow = dayNames[date.getDay()];
+
+  let modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.onclick = e => { if (e.target === modal) closeModal(); };
+
+  let imagesHtml = '';
+  if (cell.images && cell.images.length > 0) {
+    imagesHtml = cell.images.map((img, i) => `
+      <div class="img-container inline-block relative m-1">
+        <img src="${img}" class="w-24 h-24 object-contain rounded-lg border" />
+        <button class="remove-btn" style="display:flex" onclick="removeCellImage(${day}, '${category}', ${i})">×</button>
+      </div>
+    `).join('');
+  }
+
+  // Comments
+  const comments = cell.comments || [];
+  let commentsHtml = '';
+  if (comments.length > 0) {
+    commentsHtml = comments.map((c, i) => `
+      <div style="background:#f9f6f3;border-radius:8px;padding:8px 10px;margin-bottom:6px;position:relative">
+        <div style="font-weight:600;font-size:.8rem;color:#333">@${escapeHtml(c.author)}</div>
+        <div style="font-size:.85rem;margin-top:2px">${escapeHtml(c.text)}</div>
+        <div style="font-size:.7rem;color:#bbb;margin-top:2px">${c.time || ''}</div>
+        <button onclick="deleteComment(${day},'${category}',${i})" style="position:absolute;top:4px;right:8px;background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem">×</button>
+      </div>
+    `).join('');
+  }
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg">${date.getMonth()+1}/${date.getDate()}(${dow}) - ${catLabel}</h3>
+        <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+      </div>
+
+      <div class="mb-4">
+        <p class="text-sm font-semibold text-gray-600 mb-2">写真</p>
+        <div class="flex flex-wrap">${imagesHtml}</div>
+        <label class="btn btn-outline text-sm w-full text-center cursor-pointer mt-2" style="display:block">
+          📷 写真を追加
+          <input type="file" accept="image/*" class="hidden" onchange="addImageToCell(${day}, '${category}', this.files)" multiple />
+        </label>
+      </div>
+
+      <div class="mb-4">
+        <p class="text-sm font-semibold text-gray-600 mb-2">メモ</p>
+        <textarea id="cellMemo" class="w-full p-2 border rounded-lg text-sm" rows="2" placeholder="メモを入力...">${escapeHtml(cell.memo || '')}</textarea>
+      </div>
+
+      <div class="mb-4" style="display:none">
+      </div>
+
+      <div class="flex gap-2">
+        ${cell.id ? `<button class="btn btn-danger" onclick="clearCell(${day}, '${category}')">クリア</button>` : ''}
+        <button class="btn btn-primary flex-1" onclick="saveCell(${day}, '${category}')">保存</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modalContainer').appendChild(modal);
+}
+
+async function inlineComment(day, category) {
+  const author = localStorage.getItem('commentName') || '匿名';
+  const textEl = document.getElementById(`cText_${day}_${category}`);
+  const text = textEl.value.trim();
+  if (!text) return;
+  localStorage.setItem('commentName', author);
+
+  let cell = await getCellByDayCategory(day, category);
+  if (!cell) { cell = await upsertCell(day, category, {}); }
+  const comments = cell.comments || [];
+  const now = new Date();
+  comments.push({ author, text, time: `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}` });
+  await upsertCell(day, category, { comments });
+  renderGrid();
+}
+
+async function addComment(day, category) {
+  const author = document.getElementById('commentAuthor').value.trim();
+  const text = document.getElementById('commentText').value.trim();
+  if (!author || !text) return;
+  localStorage.setItem('commentName', author);
+
+  let cell = await getCellByDayCategory(day, category);
+  if (!cell) { cell = await upsertCell(day, category, {}); }
+  const comments = cell.comments || [];
+  const now = new Date();
+  comments.push({ author, text, time: `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}` });
+  await upsertCell(day, category, { comments });
+  closeModal();
+  editCell(day, category);
+}
+
+async function deleteComment(day, category, index) {
+  let cell = await getCellByDayCategory(day, category);
+  if (!cell) return;
+  const comments = cell.comments || [];
+  comments.splice(index, 1);
+  await upsertCell(day, category, { comments });
+  closeModal();
+  editCell(day, category);
+}
+
+async function saveCell(day, category) {
+  const memo = document.getElementById('cellMemo').value;
+  await upsertCell(day, category, { memo });
+  closeModal();
+  renderGrid();
+}
+
+async function clearCell(day, category) {
+  let cell = await getCellByDayCategory(day, category);
+  if (cell) await roomRef.child('cells').child(cell.id).remove();
+  closeModal();
+  renderGrid();
+}
+
+async function addImageToCell(day, category, files) {
+  if (!files || files.length === 0) return;
+  let cell = await getCellByDayCategory(day, category);
+  if (!cell) { cell = await upsertCell(day, category, {}); }
+  const images = cell.images || [];
+
+  for (const file of files) {
+    const compressed = await compressImage(file);
+    images.push(compressed);
+  }
+
+  await upsertCell(day, category, { images });
+  closeModal();
+  renderGrid();
+}
+
+async function removeCellImage(day, category, index) {
+  let cell = await getCellByDayCategory(day, category);
+  if (!cell) return;
+  const images = cell.images || [];
+  images.splice(index, 1);
+  await upsertCell(day, category, { images });
+  closeModal();
+  editCell(day, category);
+}
+
+// ============ Image Compression ============
+function compressImage(file, maxWidth = 400) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============ Temperature ============
+async function updateTemp(day, value) {
+  const temps = currentPlan.temps || {};
+  temps[day] = value;
+  await roomRef.child('plan/temps').set(temps);
+  currentPlan.temps = temps;
+}
+
+// ============ Plan List ============
+async function showPlanList() {
+  if (!currentPlan) return;
+  const p = currentPlan;
+  const start = new Date(p.startDate);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  let html = `
+    <div class="plan-card active mb-3">
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="font-bold">${escapeHtml(p.name)}</div>
+          <div class="text-sm text-gray-500">${fmt(start)} から ${p.days}日間</div>
+          <div class="text-sm text-gray-400">コード: ${roomCode || 'なし'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">旅行プラン一覧</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    ${html}
+    <button class="btn btn-primary w-full mt-2" onclick="closeModal(); showSettings()">+ 新しいプランを作成</button>
+    <hr class="my-3">
+    <div class="flex gap-2">
+      <button class="btn btn-outline text-sm flex-1" onclick="exportJSON()">バックアップ</button>
+      <label class="btn btn-outline text-sm flex-1 text-center cursor-pointer">
+        復元
+        <input type="file" accept=".json" class="hidden" onchange="importJSON(this.files[0])" />
+      </label>
+    </div>
+  `);
+}
+
+async function switchPlan(id) {
+  // In Firebase mode, plan is per-room, no switching needed
+  closeModal();
+}
+
+function confirmDeletePlan(id, name) {
+  if (confirm(`「${name}」を削除しますか？`)) {
+    deletePlan(id);
+    closeModal();
+  }
+}
+
+// ============ Settings (New Plan) ============
+function showSettings() {
+  const today = new Date().toISOString().slice(0, 10);
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">新しい旅行プランを作成</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">旅行名</label>
+      <input id="newPlanName" type="text" class="w-full p-2 border rounded-lg" placeholder="例: 沖縄旅行" />
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">出発日</label>
+      <input id="newPlanDate" type="date" class="w-full p-2 border rounded-lg" value="${today}" />
+    </div>
+    <div class="mb-4">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">日数</label>
+      <input id="newPlanDays" type="number" class="w-full p-2 border rounded-lg" value="4" min="1" max="14" />
+    </div>
+    <button class="btn btn-primary w-full" onclick="createPlanFromForm()">作成</button>
+  `);
+}
+
+async function createPlanFromForm() {
+  const name = document.getElementById('newPlanName').value || '新しい旅行';
+  const date = document.getElementById('newPlanDate').value;
+  const days = parseInt(document.getElementById('newPlanDays').value) || 3;
+  closeModal();
+  await createNewPlan(name, date, days);
+}
+
+// ============ Edit Plan Settings ============
+function showEditPlan() {
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">プラン設定を編集</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">旅行名</label>
+      <input id="editPlanName" type="text" class="w-full p-2 border rounded-lg" value="${escapeHtml(currentPlan.name)}" />
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">出発日</label>
+      <input id="editPlanDate" type="date" class="w-full p-2 border rounded-lg" value="${currentPlan.startDate}" />
+    </div>
+    <div class="mb-4">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">日数</label>
+      <input id="editPlanDays" type="number" class="w-full p-2 border rounded-lg" value="${currentPlan.days}" min="1" max="14" />
+    </div>
+    <button class="btn btn-primary w-full" onclick="updatePlanFromForm()">更新</button>
+  `);
+}
+
+async function updatePlanFromForm() {
+  const name = document.getElementById('editPlanName').value || currentPlan.name;
+  const startDate = document.getElementById('editPlanDate').value;
+  const days = parseInt(document.getElementById('editPlanDays').value) || currentPlan.days;
+  await roomRef.child('plan').update({ name, startDate, days });
+  const planSnap = await roomRef.child('plan').once('value');
+  currentPlan = planSnap.val();
+  closeModal();
+  renderHeader();
+  renderGrid();
+  renderPackingList();
+}
+
+// ============ Export ============
+function showExportModal() {
+  const codeHtml = roomCode ? `
+    <div style="text-align:center;margin-bottom:16px">
+      <p class="text-sm text-gray-500 mb-2">ルームコード</p>
+      <div onclick="copyRoomCode()" style="cursor:pointer;font-size:1.8rem;letter-spacing:8px;font-weight:700;background:#f5f5f5;padding:12px;border-radius:12px;margin-bottom:4px;border:2px solid #ddd">${roomCode}</div>
+      <p style="font-size:.75rem;color:#999;margin-bottom:8px">↑ タップでコードをコピー</p>
+      <button class="btn btn-primary w-full mb-2" onclick="copyRoomLink()">友達に共有</button>
+    </div>
+    <hr style="margin:12px 0;border-color:#eee">` : '';
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">共有・設定</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    ${codeHtml}
+    <button class="btn btn-primary w-full mb-3" onclick="exportAsText()">
+      テキストで共有
+    </button>
+    <button class="btn btn-outline w-full mb-3" onclick="exportAsPDF()">
+      PDFで保存
+    </button>
+    <hr style="margin:12px 0;border-color:#eee">
+    <button class="btn btn-outline w-full mb-3" onclick="closeModal(); showEditPlan()">
+      プラン設定を編集
+    </button>
+    <button class="btn btn-outline w-full mb-3" onclick="closeModal(); showEditDefaultsModal()">
+      おすすめ持ち物を編集
+    </button>
+    <button class="btn btn-outline w-full mb-3" style="color:#d96b6b;border-color:#d96b6b" onclick="leaveRoom()">
+      ルームを退出
+    </button>
+    <button class="btn btn-outline w-full" style="color:#d96b6b;border-color:#d96b6b" onclick="deleteRoom()">
+      ルームを削除
+    </button>
+  `);
+}
+
+async function exportAsImage() {
+  closeModal();
+  if (!currentPlan) { alert('プランがありません'); return; }
+
+  showModal('<div class="text-center p-8"><p class="text-gray-500">画像を生成中...</p></div>');
+
+  try {
+    // Build a self-contained export element
+    const allCells = await getAllCells();
+    const cellMap = {};
+    allCells.forEach(c => { cellMap[`${c.day}-${c.category}`] = c; });
+    const start = new Date(currentPlan.startDate);
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    const days = currentPlan.days;
+    const colW = 160;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `position:absolute;left:-9999px;top:0;background:#fff;padding:20px;font-family:'Hiragino Sans',sans-serif;`;
+
+    let html = `<div style="text-align:center;margin-bottom:12px">
+      <div style="font-size:20px;font-weight:700">${escapeHtml(currentPlan.name)}</div>
+      <div style="font-size:13px;color:#888">${start.getMonth()+1}/${start.getDate()} 〜 (${days}日間)</div>
+    </div>`;
+
+    html += `<table style="border-collapse:collapse;width:${40 + days * colW}px">`;
+    // Header row
+    html += `<tr><th style="width:40px;background:#e8e0d8;border:1px solid #ddd;padding:6px"></th>`;
+    for (let d = 0; d < days; d++) {
+      const date = new Date(start); date.setDate(date.getDate() + d);
+      const dow = dayNames[date.getDay()];
+      const dayColor = date.getDay() === 0 ? '#d96b6b' : date.getDay() === 6 ? '#5a9fc4' : '#333';
+      const tempVal = (currentPlan.temps && currentPlan.temps[d]) || '';
+      html += `<th style="width:${colW}px;background:#e8e0d8;border:1px solid #ddd;padding:8px;text-align:center">
+        <div style="color:${dayColor};font-size:14px">${date.getMonth()+1}/${date.getDate()}(${dow})</div>
+        <div style="font-size:11px;color:#999">${d+1}日目</div>
+        ${tempVal ? `<div style="font-size:12px;color:#e67e22">${escapeHtml(tempVal)}</div>` : ''}
+      </th>`;
+    }
+    html += `</tr>`;
+
+    // Category rows
+    const CATS = [
+      { key: 'accessory', label: 'その他' },
+      { key: 'top', label: '上' },
+      { key: 'bottom', label: '下' },
+      { key: 'shoes', label: '靴' }
+    ];
+    for (const cat of CATS) {
+      html += `<tr><td style="background:#f9f6f3;border:1px solid #ddd;text-align:center;font-weight:700;font-size:13px;color:#555;padding:6px;writing-mode:vertical-rl">${cat.label}</td>`;
+      for (let d = 0; d < days; d++) {
+        const cell = cellMap[`${d}-${cat.key}`];
+        html += `<td style="border:1px solid #ddd;padding:6px;text-align:center;vertical-align:top">`;
+        if (cell && cell.images && cell.images.length > 0) {
+          for (const img of cell.images) {
+            html += `<img src="${img}" style="max-width:${colW - 16}px;max-height:140px;object-fit:contain;border-radius:4px;margin:2px 0" />`;
+          }
+        }
+        if (cell && cell.memo) {
+          html += `<div style="font-size:11px;color:#666;margin-top:4px">${escapeHtml(cell.memo)}</div>`;
+        }
+        html += `</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</table>`;
+
+    wrapper.innerHTML = html;
+    document.body.appendChild(wrapper);
+
+    const canvas = await html2canvas(wrapper, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true
+    });
+
+    document.body.removeChild(wrapper);
+
+    const link = document.createElement('a');
+    link.download = `${currentPlan.name}_コーデ.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    closeModal();
+  } catch (err) {
+    closeModal();
+    alert('画像の生成に失敗しました: ' + err.message);
+  }
+}
+
+// ============ Export as Text ============
+async function exportAsText() {
+  if (!currentPlan) return;
+  closeModal();
+  const allItems = await getAllPackingItems();
+  const allCells = await getAllCells();
+  const start = new Date(currentPlan.startDate);
+  const days = currentPlan.days;
+  const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+  const categories = ['その他', '上', '下', '靴'];
+
+  let text = `━━━━━━━━━━━━━━━━━━━━\n`;
+  text += `  ${currentPlan.name}\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  // Outfit section
+  text += `【コーディネート】\n\n`;
+  for (let d = 0; d < days; d++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + d);
+    const dow = dayNames[date.getDay()];
+    text += `■ ${date.getMonth()+1}/${date.getDate()}(${dow}) - ${d+1}日目\n`;
+    for (const cat of categories) {
+      const cell = allCells.find(c => c.day === d && c.category === cat);
+      if (cell && cell.memo) {
+        text += `  ${cat}: ${cell.memo}\n`;
+      }
+    }
+    text += `\n`;
+  }
+
+  // Packing list section
+  const members = [...new Set(allItems.map(i => i.member))];
+  text += `【持ち物リスト】\n\n`;
+  for (const member of members) {
+    const memberItems = allItems.filter(i => i.member === member).sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
+    const total = memberItems.filter(i => !i.parentId).length;
+    const checked = memberItems.filter(i => !i.parentId && i.checked).length;
+    text += `@ ${member}  (${checked}/${total})\n`;
+    text += `${'─'.repeat(30)}\n`;
+
+    const cats = [];
+    const catMap = {};
+    memberItems.forEach(item => {
+      if (!item.parentId) {
+        if (!catMap[item.category]) { catMap[item.category] = []; cats.push(item.category); }
+        catMap[item.category].push(item);
+      }
+    });
+
+    for (const cat of cats) {
+      const catItems = catMap[cat];
+      text += `\n  【${cat}】\n`;
+      for (const item of catItems) {
+        const check = item.checked ? '✅' : '⬜';
+        const imp = item.important ? ' ‼️' : '';
+        const note = item.note ? ` (${item.note})` : '';
+        text += `    ${check} ${item.name}${imp}${note}\n`;
+        // Sub-items
+        const subs = memberItems.filter(s => s.parentId === item.id);
+        for (const sub of subs) {
+          const subCheck = sub.checked ? '✅' : '⬜';
+          text += `      ${subCheck} ${sub.name}\n`;
+        }
+      }
+    }
+    text += `\n`;
+  }
+
+  text += `━━━━━━━━━━━━━━━━━━━━\n`;
+  text += `ルームコード: ${roomCode || 'なし'}\n`;
+  text += `作成日: ${new Date().toLocaleDateString('ja-JP')}\n`;
+
+  // Try Web Share API first (mobile)
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: currentPlan.name, text: text });
+      return;
+    } catch(e) {}
+  }
+
+  // Fallback: show in modal for copy
+  showModal(`
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="font-bold text-lg">テキスト共有</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <textarea id="exportTextArea" readonly style="width:100%;height:300px;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:13px;font-family:monospace;resize:none;-webkit-user-select:text;user-select:text">${text.replace(/</g,'&lt;')}</textarea>
+    <div class="flex gap-2 mt-3">
+      <button class="btn btn-primary flex-1" onclick="copyTextToClipboard(document.getElementById('exportTextArea').value,'コピーしました！')">コピー</button>
+      <button class="btn btn-outline flex-1" onclick="closeModal();downloadTextFile()">ファイル保存</button>
+    </div>
+  `);
+  window.downloadTextFile = () => {
+    const blob = new Blob([text], { type: 'text/plain; charset=utf-8' });
+    const link = document.createElement('a');
+    link.download = currentPlan.name + '_持ち物リスト.txt';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+  };
+}
+
+// ============ Export as PDF ============
+async function archiveTrip() {
+  if (!currentPlan) return;
+  if (!confirm(`「${currentPlan.name}」をPDF保存してデータを削除しますか？\n\nPDFが保存された後にFirebase上のデータが削除されます。`)) return;
+  closeModal();
+  // First export as PDF
+  await exportAsPDF();
+  // Then delete room data after a delay to ensure PDF is generated
+  setTimeout(async () => {
+    if (confirm('PDFは保存できましたか？\n「OK」でデータを削除します。')) {
+      if (roomRef) {
+        await roomRef.remove();
+      }
+      localStorage.removeItem('roomCode');
+      removeRoomFromHistory(roomCode);
+      roomRef = null;
+      currentPlan = null;
+      roomCode = null;
+      showWelcome();
+    }
+  }, 2000);
+}
+
+async function exportAsPDF() {
+  if (!currentPlan) return;
+  closeModal();
+
+  const allItems = await getAllPackingItems();
+  const allCells = await getAllCells();
+  const start = new Date(currentPlan.startDate);
+  const days = currentPlan.days;
+  const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+  const CATS = [
+    { key: 'accessory', label: 'その他' },
+    { key: 'top', label: '上' },
+    { key: 'bottom', label: '下' },
+    { key: 'shoes', label: '靴' }
+  ];
+  const members = [...new Set(allItems.map(i => i.member))];
+
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${currentPlan.name}</title>
+  <style>
+    body { font-family: 'Hiragino Sans', sans-serif; padding: 24px; font-size: 14px; color: #333; }
+    h1 { font-size: 20px; text-align: center; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 13px; }
+    h2 { font-size: 16px; background: #333; color: #fff; padding: 6px 12px; border-radius: 6px; margin-top: 20px; }
+    .cat { font-weight: 700; font-size: 13px; background: #f5f5f5; padding: 4px 8px; border-radius: 4px; margin: 10px 0 4px; }
+    .item { padding: 3px 0 3px 16px; font-size: 13px; }
+    .sub { padding: 2px 0 2px 32px; font-size: 12px; color: #666; }
+    .checked { text-decoration: line-through; color: #bbb; }
+    .important { color: #d96b6b; }
+    .day-section { margin-bottom: 16px; padding: 12px; border: 1px solid #eee; border-radius: 8px; page-break-inside: avoid; }
+    .day-title { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+    .cat-label { font-size: 12px; color: #888; margin-top: 6px; }
+    .photo-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+    .photo-row img { max-width: 120px; max-height: 120px; object-fit: contain; border-radius: 6px; }
+    @media print { body { padding: 12px; } .day-section { page-break-inside: avoid; } }
+  </style></head><body>`;
+
+  const fmtDate = d => `${d.getMonth()+1}/${d.getDate()}`;
+  const endDate = new Date(start); endDate.setDate(endDate.getDate() + days - 1);
+  html += `<h1>${currentPlan.name}</h1>`;
+  html += `<div class="subtitle">${fmtDate(start)} 〜 ${fmtDate(endDate)} (${days}日間)</div>`;
+
+  // Outfits
+  html += `<h2>コーディネート</h2>`;
+  for (let d = 0; d < days; d++) {
+    const date = new Date(start); date.setDate(date.getDate() + d);
+    const dow = dayNames[date.getDay()];
+    html += `<div class="day-section"><div class="day-title">${date.getMonth()+1}/${date.getDate()}(${dow}) - ${d+1}日目</div>`;
+    for (const cat of CATS) {
+      const cell = allCells.find(c => c.day === d && c.category === cat.key);
+      if (cell && (cell.memo || (cell.images && cell.images.length > 0))) {
+        html += `<div class="cat-label">${cat.label}</div>`;
+        if (cell.images && cell.images.length > 0) {
+          html += `<div class="photo-row">`;
+          for (const img of cell.images) {
+            html += `<img src="${img}">`;
+          }
+          html += `</div>`;
+        }
+        if (cell.memo) html += `<div style="font-size:12px;color:#666;margin-top:2px">${cell.memo}</div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+    // Packing
+    for (const member of members) {
+      const memberItems = allItems.filter(i => i.member === member).sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0));
+      const total = memberItems.filter(i => !i.parentId).length;
+      const checked = memberItems.filter(i => !i.parentId && i.checked).length;
+      html += `<h2>持ち物: ${member} (${checked}/${total})</h2>`;
+
+      const cats = []; const catMap = {};
+      memberItems.forEach(item => {
+        if (!item.parentId) {
+          if (!catMap[item.category]) { catMap[item.category] = []; cats.push(item.category); }
+          catMap[item.category].push(item);
+        }
+      });
+
+      for (const cat of cats) {
+        html += `<div class="cat">${cat}</div>`;
+        for (const item of catMap[cat]) {
+          const cls = item.checked ? 'item checked' : 'item';
+          const check = item.checked ? '☑' : '☐';
+          const imp = item.important ? ' <span class="important">‼️</span>' : '';
+          const note = item.note ? ` <span style="color:#999">(${item.note})</span>` : '';
+          html += `<div class="${cls}">${check} ${item.name}${imp}${note}</div>`;
+          const subs = memberItems.filter(s => s.parentId === item.id);
+          for (const sub of subs) {
+            const subCls = sub.checked ? 'sub checked' : 'sub';
+            const subCheck = sub.checked ? '☑' : '☐';
+            html += `<div class="${subCls}">${subCheck} ${sub.name}</div>`;
+          }
+        }
+      }
+    }
+
+  html += `<div style="margin-top:24px;text-align:center;color:#bbb;font-size:11px">ルームコード: ${roomCode || 'なし'} | ${new Date().toLocaleDateString('ja-JP')}</div>`;
+  html += `</body></html>`;
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write(html);
+  printWin.document.close();
+  // Wait for images to load before printing
+  setTimeout(() => { printWin.print(); }, 500);
+}
+
+// ============ JSON Backup ============
+async function exportJSON() {
+  if (!roomRef) return;
+  const snap = await roomRef.once('value');
+  const data = JSON.stringify(snap.val(), null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.download = 'travel-outfit-backup.json';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+}
+
+async function importJSON(file) {
+  if (!file || !roomRef) return;
+  if (!confirm('現在のデータを上書きしますか？')) return;
+  const text = await file.text();
+  try {
+    const data = JSON.parse(text);
+    await roomRef.set(data);
+    closeModal();
+    init();
+    alert('復元しました');
+  } catch(e) {
+    alert('ファイルの読み込みに失敗しました');
+  }
+}
+
+// ============ Helpers ============
+function showModal(content) {
+  closeModal();
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.onclick = e => { if (e.target === modal) closeModal(); };
+  modal.innerHTML = `<div class="modal-content">${content}</div>`;
+  document.getElementById('modalContainer').appendChild(modal);
+}
+
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ============ Packing List ============
+let currentMember = null; // null = show all, or member name
+const MEMBER_COLORS = [
+  { border: '#b388d9', bg: '#f8f4fc', text: '#7b4ea3' },
+  { border: '#d4a017', bg: '#fdf8ed', text: '#b8860b' },
+  { border: '#5bb5a2', bg: '#f2faf8', text: '#3d8b7a' },
+  { border: '#e07a5f', bg: '#fdf4f1', text: '#c4573e' },
+  { border: '#6898c4', bg: '#f0f5fa', text: '#4a7aaa' },
+];
+function getMemberColor(members, name) {
+  const idx = members.indexOf(name);
+  return MEMBER_COLORS[idx % MEMBER_COLORS.length];
+}
+let collapsedCats = JSON.parse(localStorage.getItem('collapsedCats') || '{}');
+function toggleCatCollapse(cat) {
+  const key = (currentMember || '') + '::' + cat;
+  collapsedCats[key] = !collapsedCats[key];
+  localStorage.setItem('collapsedCats', JSON.stringify(collapsedCats));
+  // Direct DOM toggle for instant response
+  const catId = 'cat-items-' + cat.replace(/[^a-zA-Z0-9\u3000-\u9fff]/g, '_');
+  const itemsEl = document.getElementById(catId);
+  const arrowEl = document.getElementById('cat-arrow-' + cat.replace(/[^a-zA-Z0-9\u3000-\u9fff]/g, '_'));
+  if (itemsEl) {
+    itemsEl.style.display = collapsedCats[key] ? 'none' : '';
+  }
+  if (arrowEl) {
+    arrowEl.textContent = collapsedCats[key] ? '▶' : '▼';
+  }
+  return;
+}
+
+// Per-member default packing lists from actual trip data
+const DEFAULT_PACKING_MEMBERS = {
+  '아야카': [
+    { cat: '朝に準備する物', items: [
+      { name: 'スマホ' },
+      { name: '充電器' },
+      { name: 'メイク道具' },
+      { name: 'ストレートアイロン' },
+    ]},
+    { cat: 'キャリーケース', items: [
+      { name: 'バッグ　リュック' },
+      { name: 'ウエストポーチ' },
+      { name: 'パスポートのコピー' },
+      { name: 'スマホ充電器' },
+      { name: '変換プラグC・SE' },
+      { name: '着替え', subs: ['Tシャツ×2', 'ベスト', 'パンツ×2', 'タンクトップ×3', '下着×4'] },
+      { name: '軽いシャツ' },
+      { name: '靴下×3' },
+      { name: 'エコバッグ・袋' },
+      { name: 'ヘアケア用品' },
+      { name: 'メイク道具' },
+      { name: 'カイロ' },
+      { name: 'ストレートアイロン' },
+      { name: 'パジャマ・部屋着', subs: ['パジャマズボン', '薄い上', 'ナイトブラ', 'ナイトタンク', 'ナイトパンツ'] },
+      { name: 'ジップロック' },
+      { name: 'メガネ' },
+    ]},
+    { cat: '(斜めがけ) 機内持ち込み', items: [
+      { name: '携帯' },
+      { name: 'モバイルバッテリー' },
+      { name: 'お金・お財布', note: '6万円くらい' },
+      { name: 'クレジットカード' },
+      { name: 'パスポート', important: true },
+      { name: 'マスク' },
+      { name: 'ハンカチ・ティッシュ・ウェットティッシュ' },
+      { name: 'サングラス' },
+      { name: '常備薬', subs: ['頭痛薬', '爪楊枝', 'リップ', '口内炎の薬', '胃薬', '目薬'] },
+      { name: 'イヤホン' },
+      { name: 'クッション' },
+      { name: 'Tmoneyカードケース' },
+    ]},
+  ],
+  '토모미': [
+    { cat: '朝に準備するもの', items: [
+      { name: 'スマホ' },
+      { name: '充電器' },
+      { name: 'メイク道具' },
+      { name: '足用のゴム' },
+      { name: 'ワックス' },
+    ]},
+    { cat: 'キャリーケース', items: [
+      { name: 'パスポートのコピー' },
+      { name: '変換プラグC・SE' },
+      { name: '着替え', subs: ['パンツ×5', 'タンクトップ×3', '靴下×4', 'ナイトブラ×1'] },
+      { name: 'ジップロック', note: '大きめも' },
+      { name: 'ストレートアイロン' },
+      { name: 'カチューシャ' },
+      { name: 'ヘアバーム' },
+      { name: 'チザニジン×4' },
+      { name: 'メラトニン×4' },
+      { name: '朝のサプリ×4' },
+      { name: 'メディキュット' },
+      { name: 'コンタクト5セット' },
+      { name: '生理用品' },
+      { name: 'パジャマ' },
+      { name: '湿布' },
+      { name: '空の小さなマイボトル' },
+      { name: '充血用の目薬' },
+    ]},
+    { cat: '(斜めがけ) 機内持ち込み', items: [
+      { name: 'eチケット', important: true, note: 'コピーする' },
+      { name: 'モバイルバッテリー' },
+      { name: '動画用カメラ' },
+      { name: 'SDカード', important: true },
+      { name: 'お茶', note: '1本' },
+      { name: 'お金・お財布', note: '6万円' },
+      { name: 'クレジットカード' },
+      { name: 'パスポート', important: true },
+      { name: 'ハンカチ・ティッシュ・ウェットティッシュ' },
+      { name: 'カイロ' },
+      { name: 'AirPods' },
+      { name: 'サングラス' },
+      { name: '日傘' },
+      { name: 'エコバッグ' },
+      { name: 'スカーフ' },
+      { name: 'リュック' },
+      { name: '薄い上着' },
+      { name: '常備薬', subs: ['頭痛薬 多め', '胃薬', '酔い止め', '爪楊枝', 'リップ', '目薬', 'カリカリ梅', '飴ちゃん'] },
+      { name: '空気まくら' },
+      { name: 'Tmoneyカードケース' },
+    ]},
+  ]
+};
+// Fallback for generic use
+const DEFAULT_PACKING = DEFAULT_PACKING_MEMBERS['토모미'];
+
+async function getMembers() {
+  return await getRoomMembers();
+}
+
+async function renderPackingList() {
+  if (!currentPlan) return;
+  const container = document.getElementById('packingList');
+  const allItems = await getAllPackingItems();
+  const members = await getRoomMembers();
+
+  if (members.length === 0 && allItems.length === 0) {
+    // Empty state
+    container.innerHTML = `<div class="packing-section">
+      <h2 class="font-bold text-lg mb-3">持ち物リスト</h2>
+      <div class="text-center py-6 text-gray-400">
+        <p class="mb-3">まだアイテムがありません</p>
+        <button class="btn btn-primary text-sm" onclick="showAddMemberModal()">メンバーを追加して始める</button>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // Default to first member
+  if (!currentMember || !members.includes(currentMember)) {
+    currentMember = members[0];
+  }
+
+  const memberItems = allItems.filter(i => i.member === currentMember).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const total = memberItems.filter(i => !i.parentId || i.parentId === null).length;
+  const checked = memberItems.filter(i => (!i.parentId || i.parentId === null) && i.checked === true).length;
+  const pct = total > 0 ? Math.round(checked / total * 100) : 0;
+  const curMC = getMemberColor(members, currentMember);
+
+  // Member tabs
+  let tabsHtml = members.map(m => {
+    const mc = getMemberColor(members, m);
+    const isActive = m === currentMember;
+    const style = isActive ? `border-color:${mc.border};background:${mc.bg};color:${mc.text}` : '';
+    return `<div class="member-tab ${isActive ? 'active' : ''}" onclick="switchMember('${escapeHtml(m)}')" data-member="${escapeHtml(m)}" style="${style}"><span onclick="event.stopPropagation();showEditMemberModal('${escapeHtml(m)}')" style="margin-right:4px;font-size:12px;opacity:0.5">✏️</span>${escapeHtml(m)}</div>`;
+  }).join('');
+  tabsHtml += `<div class="member-tab add-tab" onclick="showAddMemberModal()">+ 追加</div>`;
+
+  let html = `<div class="packing-section">
+    <div class="flex justify-between items-center mb-1">
+      <h2 class="font-bold text-lg">持ち物リスト</h2>
+      <span class="text-sm text-gray-500">${checked}/${total} (${pct}%)</span>
+    </div>
+    <div class="packing-progress"><div class="packing-progress-bar" style="width:${pct}%;background:${curMC.border}"></div></div>
+    <div class="member-tabs">${tabsHtml}</div>`;
+
+  // Group by category
+  const cats = [];
+  const catMap = {};
+  memberItems.forEach(item => {
+    if (!item.parentId || item.parentId === null) {
+      if (!catMap[item.category]) {
+        catMap[item.category] = [];
+        cats.push(item.category);
+      }
+      catMap[item.category].push(item);
+    }
+  });
+
+  // Render categories in a sortable wrapper
+  html += `<div id="catSortable">`;
+
+  for (let ci = 0; ci < cats.length; ci++) {
+    const cat = cats[ci];
+    const catItems = catMap[cat] || [];
+    const catChecked = catItems.filter(i => i.checked).length;
+    const collapseKey = (currentMember || '') + '::' + cat;
+    const isCollapsed = collapsedCats[collapseKey] === false ? false : true;
+    const arrow = isCollapsed ? '▶' : '▼';
+    html += `<div class="cat-group" data-cat="${escapeHtml(cat)}">
+      <div class="packing-cat-header cat-drag-handle" onclick="toggleCatCollapse('${escapeHtml(cat)}')" style="cursor:pointer;background:${curMC.bg};border-color:${curMC.border};color:${curMC.text}">
+        <span><span id="cat-arrow-${cat.replace(/[^a-zA-Z0-9\u3000-\u9fff]/g, '_')}" style="font-size:.7rem;margin-right:4px">${arrow}</span> ${escapeHtml(cat)}</span>
+        <div class="flex items-center gap-2">
+          <span style="font-size:.8rem;color:${curMC.text};opacity:.7">${catChecked}/${catItems.length}</span>
+          <button class="act-btn" style="color:${curMC.text};opacity:.7;font-size:.9rem" onclick="event.stopPropagation();showEditCategoryModal('${escapeHtml(cat)}')">...</button>
+        </div>
+      </div>
+      <div id="cat-items-${cat.replace(/[^a-zA-Z0-9\u3000-\u9fff]/g, '_')}" class="item-sortable" data-cat="${escapeHtml(cat)}" style="${isCollapsed ? 'display:none' : ''}">`;
+
+    for (const item of catItems) {
+      const subs = memberItems.filter(s => s.parentId === item.id);
+      html += renderPackingItem(item, false, curMC);
+      for (const sub of subs) {
+        html += renderPackingItem(sub, true, curMC);
+      }
+    }
+
+    // Inline add-item row for this category
+    html += `<div class="cat-add-row" style="display:flex;gap:6px;padding:8px 4px 4px">
+      <input type="text" placeholder="+ アイテム追加" onkeydown="if(event.key==='Enter')quickAddItemToCat('${escapeHtml(cat).replace(/'/g, "\\'")}', this)" style="flex:1;padding:8px 10px;border:1px dashed #d4c8b0;border-radius:8px;font-size:14px;background:#fff;color:#666" />
+      <button class="btn btn-primary" style="padding:6px 14px;font-size:13px;min-height:34px" onclick="quickAddItemToCat('${escapeHtml(cat).replace(/'/g, "\\'")}', this.previousElementSibling)">追加</button>
+    </div>`;
+
+    html += `</div></div>`;
+  }
+
+  html += `</div>`;
+
+  // Category / recommendations buttons
+  html += `<div class="flex gap-2 mt-3">
+    <button class="btn btn-outline text-sm flex-1" onclick="showAddCategoryModal()">+ カテゴリ追加</button>
+    <button class="btn btn-outline text-sm flex-1" onclick="showAddDefaultItems()">おすすめ追加</button>
+  </div>`;
+
+  // Packing memo
+  const packingMemoKey = 'packingMemo_' + currentMember;
+  const packingMemoSnap = await roomRef.child(packingMemoKey).once('value');
+  const packingMemo = packingMemoSnap.val() || '';
+  html += `<div style="margin-top:14px">
+    <div style="font-size:.9rem;font-weight:700;color:#888;margin-bottom:4px">📝 メモ</div>
+    <textarea id="packingMemoArea" style="width:100%;min-height:60px;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;resize:vertical;background:#fafafa;-webkit-user-select:text;user-select:text" placeholder="持ち物に関するメモ..." onblur="savePackingMemo()">${escapeHtml(packingMemo)}</textarea>
+  </div>`;
+
+  html += `</div>`;
+  container.innerHTML = html;
+
+  // Initialize Sortable for categories
+  initSortable();
+  // Re-apply tab visibility
+  applyTabState();
+}
+
+function renderPackingItem(item, isSub, mc) {
+  const importantHtml = item.important ? '<span class="item-important">‼️</span>' : '';
+  const noteHtml = item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : '';
+  const checkColor = mc ? mc.border : '#999';
+  return `<div class="packing-item ${item.checked ? 'checked' : ''} ${isSub ? 'sub-item' : ''}" data-id="${item.id}">
+    <span class="drag-handle" style="cursor:grab;color:#ccc;padding:0 4px;font-size:1rem;touch-action:none">⠿</span>
+    <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="togglePackingItem('${item.id}')" style="accent-color:${checkColor}" />
+    <div class="item-content" onclick="showEditItemModal('${item.id}')">
+      <div class="item-name">${escapeHtml(item.name)} ${importantHtml}</div>
+      ${noteHtml}
+    </div>
+    <div class="item-actions">
+      <button class="act-btn" onclick="deletePackingItem('${item.id}')">×</button>
+    </div>
+  </div>`;
+}
+
+async function savePackingMemo() {
+  const el = document.getElementById('packingMemoArea');
+  if (!el || !roomRef || !currentMember) return;
+  const key = 'packingMemo_' + currentMember;
+  await roomRef.child(key).set(el.value);
+}
+
+function switchMember(name) {
+  currentMember = name;
+  renderPackingList();
+}
+
+async function showAddOutfitMemberModal() {
+  const existingMembers = await getRoomMembers();
+  const templateNames = Object.keys(DEFAULT_PACKING_MEMBERS);
+  const suggestions = templateNames.filter(n => !existingMembers.includes(n));
+  let suggestHtml = '';
+  if (suggestions.length > 0) {
+    suggestHtml = `<div class="mb-3">
+      <p class="text-sm text-gray-500 mb-2">テンプレートから追加:</p>
+      <div class="flex gap-2 flex-wrap">
+        ${suggestions.map(n => `<button class="btn btn-outline text-sm" onclick="addOutfitMember('${escapeHtml(n)}')" style="padding:8px 16px">@${escapeHtml(n)}</button>`).join('')}
+      </div>
+    </div>
+    <div style="text-align:center;color:#ccc;margin:8px 0">または</div>`;
+  }
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">メンバーを追加</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    ${suggestHtml}
+    <div class="mb-4">
+      <input id="newOutfitMember" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" placeholder="名前を入力" />
+    </div>
+    <button class="btn btn-primary w-full" onclick="addOutfitMember(document.getElementById('newOutfitMember').value.trim())">追加</button>
+  `);
+}
+
+async function addOutfitMember(name) {
+  if (!name) return;
+  await addRoomMember(name);
+  currentMember = name;
+  closeModal();
+  renderGrid();
+  renderPackingList();
+}
+
+function showEditMemberModal(name) {
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">メンバー編集</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">名前</label>
+      <input id="editMemberName" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" value="${escapeHtml(name)}" />
+    </div>
+    <button class="btn btn-primary w-full mb-2" onclick="renameMember('${escapeHtml(name)}')">変更</button>
+    <button class="btn btn-danger w-full" onclick="deleteMember('${escapeHtml(name)}')">メンバーを削除</button>
+  `);
+}
+
+async function renameMember(oldName) {
+  const newName = document.getElementById('editMemberName').value.trim();
+  if (!newName || newName === oldName) { closeModal(); return; }
+  closeModal();
+  // Batch update for speed
+  const updates = {};
+  const allItems = await getAllPackingItems();
+  for (const item of allItems.filter(i => i.member === oldName)) {
+    updates[`packingItems/${item.id}/member`] = newName;
+  }
+  const allCells = await getAllCells();
+  for (const cell of allCells.filter(c => c.member === oldName)) {
+    updates[`cells/${cell.id}/member`] = newName;
+  }
+  if (Object.keys(updates).length > 0) {
+    await roomRef.update(updates);
+  }
+  // Try to rename in Firebase. If not found, add as new.
+  const snap = await roomRef.child('members').once('value');
+  let found = false;
+  if (snap.val()) {
+    snap.forEach(c => {
+      if (c.val().name === oldName) {
+        roomRef.child('members').child(c.key).update({ name: newName });
+        found = true;
+      }
+    });
+  }
+  if (!found) {
+    await addRoomMember(newName);
+  }
+  currentMember = newName;
+  localStorage.setItem('myMemberName', newName);
+  renderGrid();
+  renderPackingList();
+}
+
+async function deleteMember(name) {
+  closeModal();
+  showModal(`
+    <div class="text-center py-4">
+      <p class="font-bold text-lg mb-2">「${escapeHtml(name)}」を削除</p>
+      <p class="text-gray-500 mb-4">このメンバーのデータをすべて削除しますか？</p>
+      <div class="flex gap-3">
+        <button class="btn btn-outline flex-1" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-danger flex-1" onclick="confirmDeleteMember('${escapeHtml(name)}')">削除する</button>
+      </div>
+    </div>
+  `);
+}
+async function confirmDeleteMember(name) {
+  const allItems = await getAllPackingItems();
+  for (const item of allItems.filter(i => i.member === name)) {
+    await roomRef.child('packingItems').child(item.id).remove();
+  }
+  const allCells = await getAllCells();
+  for (const cell of allCells.filter(c => c.member === name)) {
+    await roomRef.child('cells').child(cell.id).remove();
+  }
+  await removeRoomMember(name);
+  const savedName = localStorage.getItem('myMemberName');
+  if (savedName === name) localStorage.removeItem('myMemberName');
+  currentMember = null;
+  closeModal();
+  renderGrid();
+  renderPackingList();
+}
+
+// ---- Add Member ----
+async function showAddMemberModal() {
+  const existingMembers = await getMembers();
+  const suggestions = Object.keys(DEFAULT_PACKING_MEMBERS).filter(n => !existingMembers.includes(n));
+  let suggestHtml = '';
+  if (suggestions.length > 0) {
+    suggestHtml = `<div class="mb-3">
+      <p class="text-sm text-gray-500 mb-2">テンプレートから追加:</p>
+      <div class="flex gap-2 flex-wrap">
+        ${suggestions.map(n => `<button class="btn btn-outline text-sm" onclick="addMemberWithDefaults('${escapeHtml(n)}')" style="padding:8px 16px">@${escapeHtml(n)}</button>`).join('')}
+      </div>
+    </div>
+    <div style="text-align:center;color:#ccc;margin:8px 0">または</div>`;
+  }
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">メンバーを追加</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    ${suggestHtml}
+    <div class="mb-4">
+      <input id="newMemberName" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" placeholder="名前を入力" autofocus />
+    </div>
+    <button class="btn btn-primary w-full" onclick="addMember()">追加</button>
+  `);
+}
+
+async function addMemberWithDefaults(name) {
+  closeModal();
+  await addRoomMember(name);
+  currentMember = name;
+  const packingData = DEFAULT_PACKING_MEMBERS[name] || DEFAULT_PACKING;
+  const updates = {};
+  let order = 0;
+  for (const g of packingData) {
+    for (const item of g.items) {
+      const key = roomRef.child('packingItems').push().key;
+      updates['packingItems/' + key] = {
+        planId: currentPlanId, member: name, category: g.cat,
+        name: item.name, checked: false, important: item.important || false, note: item.note || '', parentId: null, sortOrder: order++
+      };
+      if (item.subs) {
+        for (const sub of item.subs) {
+          const subKey = roomRef.child('packingItems').push().key;
+          updates['packingItems/' + subKey] = {
+            planId: currentPlanId, member: name, category: g.cat,
+            name: sub, checked: false, important: false, note: '', parentId: key, sortOrder: 0
+          };
+        }
+      }
+    }
+  }
+  await roomRef.update(updates);
+  renderGrid();
+  renderPackingList();
+}
+
+async function addMember() {
+  const name = document.getElementById('newMemberName').value.trim();
+  if (!name) return;
+  await addRoomMember(name);
+  // Add first item so member has content
+  await roomRef.child('packingItems').push({
+    planId: currentPlanId, member: name, category: '朝に準備する物',
+    name: 'スマホ', checked: false, important: false, note: '', parentId: null, sortOrder: 0
+  });
+  currentMember = name;
+  closeModal();
+  renderGrid();
+  renderPackingList();
+}
+
+// ---- Add Category ----
+function showAddCategoryModal() {
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">カテゴリを追加</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-4">
+      <input id="newCatName" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" placeholder="例: 機内持ち込み" />
+    </div>
+    <button class="btn btn-primary w-full" onclick="addCategory()">追加</button>
+  `);
+}
+
+async function addCategory() {
+  const cat = document.getElementById('newCatName').value.trim();
+  if (!cat) return;
+  closeModal();
+  // Focus the add item input with this category pre-selected
+  const items = (await getAllPackingItems()).filter(i => i.member === currentMember);
+  const maxOrder = items.reduce((m, i) => Math.max(m, i.sortOrder || 0), 0);
+  await roomRef.child('packingItems').push({
+    planId: currentPlanId, member: currentMember, category: cat,
+    name: '（ここにアイテムを追加）', checked: false, important: false, note: '', parentId: null, sortOrder: maxOrder + 1
+  });
+  renderPackingList();
+}
+
+// ---- Edit Category ----
+function showEditCategoryModal(cat) {
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">カテゴリ: ${escapeHtml(cat)}</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">カテゴリ名を変更</label>
+      <input id="editCatName" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" value="${escapeHtml(cat)}" />
+    </div>
+    <button class="btn btn-primary w-full mb-2" onclick="renameCategory('${escapeHtml(cat)}')">変更</button>
+    <button class="btn btn-danger w-full" onclick="deleteCategoryConfirm('${escapeHtml(cat)}')">カテゴリごと削除</button>
+  `);
+}
+
+async function renameCategory(oldName) {
+  const newName = document.getElementById('editCatName').value.trim();
+  if (!newName || newName === oldName) { closeModal(); return; }
+  const allItems = await getAllPackingItems();
+  const items = allItems.filter(i => i.member === currentMember && i.category === oldName);
+  for (const item of items) {
+    await roomRef.child('packingItems').child(item.id).update({ category: newName });
+  }
+  closeModal();
+  renderPackingList();
+}
+
+async function deleteCategoryConfirm(cat) {
+  if (!confirm(`「${cat}」のアイテムをすべて削除しますか？`)) return;
+  const allItems = await getAllPackingItems();
+  const items = allItems.filter(i => i.member === currentMember && i.category === cat);
+  const ids = items.map(i => i.id);
+  const subIds = allItems.filter(i => ids.includes(i.parentId)).map(i => i.id);
+  for (const sid of [...ids, ...subIds]) {
+    await roomRef.child('packingItems').child(sid).remove();
+  }
+  closeModal();
+  renderPackingList();
+}
+
+// ---- Quick Add Item (per-category) ----
+async function quickAddItemToCat(cat, inputEl) {
+  const name = inputEl.value.trim();
+  if (!name) return;
+  const items = (await getAllPackingItems()).filter(i => i.member === currentMember);
+  const maxOrder = items.reduce((m, i) => Math.max(m, i.sortOrder || 0), 0);
+  await roomRef.child('packingItems').push({
+    planId: currentPlanId, member: currentMember, category: cat,
+    name, checked: false, important: false, note: '', parentId: null, sortOrder: maxOrder + 1
+  });
+  inputEl.value = '';
+  renderPackingList();
+}
+
+// ---- Edit Item Modal ----
+async function showEditItemModal(id) {
+  const allItems = await getAllPackingItems();
+  const item = allItems.find(i => i.id === id);
+  if (!item) return;
+  const memberItems = allItems.filter(i => i.member === currentMember);
+  const cats = [...new Set(memberItems.filter(i => !i.parentId).map(i => i.category))];
+  const parentItems = memberItems.filter(i => !i.parentId && i.id !== id);
+
+  // Parse quantity from name (e.g. "パンツ×2" → name:"パンツ", qty:2)
+  const qtyMatch = item.name.match(/^(.+?)[×x](\d+)$/);
+  const baseName = qtyMatch ? qtyMatch[1] : item.name;
+  const qty = qtyMatch ? parseInt(qtyMatch[2]) : 1;
+
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">アイテム編集</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">アイテム名</label>
+      <input id="editItemName" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" value="${escapeHtml(baseName)}" />
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">数量</label>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onclick="changeQty(-1)" style="width:40px;height:40px;border-radius:50%;border:2px solid #333;background:#fff;font-size:1.2rem;cursor:pointer">−</button>
+        <input id="editItemQty" type="number" min="1" value="${qty}" style="width:60px;text-align:center;font-size:18px;font-weight:700;border:1px solid #ddd;border-radius:8px;padding:6px" />
+        <button onclick="changeQty(1)" style="width:40px;height:40px;border-radius:50%;border:2px solid #333;background:#fff;font-size:1.2rem;cursor:pointer">+</button>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">メモ</label>
+      <input id="editItemNote" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" value="${escapeHtml(item.note || '')}" placeholder="例: 6万円くらい" />
+    </div>
+    <div class="mb-3">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">カテゴリ</label>
+      <select id="editItemCat" class="w-full p-3 border rounded-lg" style="font-size:16px">
+        ${cats.map(c => `<option value="${escapeHtml(c)}" ${c === item.category ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="mb-3 flex items-center gap-3">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="editItemImportant" ${item.important ? 'checked' : ''} style="width:20px;height:20px;accent-color:#d96b6b" />
+        <span class="text-sm">重要‼️</span>
+      </label>
+    </div>
+    ${!item.parentId ? `<div class="mb-3">
+      <button class="btn btn-outline w-full text-sm" onclick="closeModal();showAddSubItemModal('${id}')">+ サブアイテムを追加</button>
+    </div>` : ''}
+    <div class="flex gap-2">
+      <button class="btn btn-danger" onclick="deletePackingItem('${id}')">削除</button>
+      <button class="btn btn-primary flex-1" onclick="saveEditItem('${id}')">保存</button>
+    </div>
+  `);
+}
+
+function changeQty(delta) {
+  const el = document.getElementById('editItemQty');
+  let v = parseInt(el.value) + delta;
+  if (v < 1) v = 1;
+  el.value = v;
+}
+
+async function saveEditItem(id) {
+  const baseName = document.getElementById('editItemName').value.trim();
+  const qty = parseInt(document.getElementById('editItemQty').value) || 1;
+  const note = document.getElementById('editItemNote').value.trim();
+  const category = document.getElementById('editItemCat').value;
+  const important = document.getElementById('editItemImportant').checked;
+  if (!baseName) return;
+  const name = qty > 1 ? baseName + '×' + qty : baseName;
+  await roomRef.child('packingItems').child(id).update({ name, note, category, important });
+  closeModal();
+  renderPackingList();
+}
+
+// ---- Sub Items ----
+function showAddSubItemModal(parentId) {
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">サブアイテム追加</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <div class="mb-4">
+      <input id="newSubItem" type="text" class="w-full p-3 border rounded-lg" style="font-size:16px" placeholder="例: 頭痛薬" />
+    </div>
+    <button class="btn btn-primary w-full" onclick="addSubItem('${parentId}')">追加</button>
+  `);
+}
+
+async function addSubItem(parentId) {
+  const name = document.getElementById('newSubItem').value.trim();
+  if (!name) return;
+  const allItems = await getAllPackingItems();
+  const parent = allItems.find(i => i.id === parentId);
+  if (!parent) return;
+  await roomRef.child('packingItems').push({
+    planId: currentPlanId, member: parent.member, category: parent.category,
+    name, checked: false, important: false, note: '', parentId, sortOrder: 0
+  });
+  closeModal();
+  renderPackingList();
+}
+
+// ---- Custom Defaults (localStorage) ----
+function getCustomDefaultsKey(memberName) { return 'customDefaults_' + memberName; }
+
+function getCustomDefaults(memberName) {
+  try {
+    const stored = localStorage.getItem(getCustomDefaultsKey(memberName));
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {}
+  return DEFAULT_PACKING_MEMBERS[memberName] || DEFAULT_PACKING;
+}
+
+function saveCustomDefaults(memberName, data) {
+  localStorage.setItem(getCustomDefaultsKey(memberName), JSON.stringify(data));
+}
+
+function resetCustomDefaults(memberName) {
+  localStorage.removeItem(getCustomDefaultsKey(memberName));
+}
+
+// ---- Edit Defaults Modal ----
+let editingDefaultsData = null;
+let editingDefaultsMember = null;
+
+async function showEditDefaultsModal() {
+  const members = await getRoomMembers();
+  if (members.length === 0) { alert('まずメンバーを追加してください'); return; }
+  if (!currentMember || !members.includes(currentMember)) currentMember = members[0];
+  editingDefaultsMember = currentMember;
+  editingDefaultsData = JSON.parse(JSON.stringify(getCustomDefaults(editingDefaultsMember)));
+  renderEditDefaultsModal();
+}
+
+async function renderEditDefaultsModal() {
+  const members = await getRoomMembers();
+  const tabsHtml = members.map(m => {
+    const active = m === editingDefaultsMember;
+    return `<button onclick="switchEditDefaultsMember('${escapeHtml(m).replace(/'/g, "\\'")}')" style="padding:6px 14px;border-radius:16px;font-size:13px;font-weight:${active?'700':'500'};border:1.5px solid ${active?'#5a5245':'#ddd'};background:${active?'#5a5245':'#fff'};color:${active?'#fff':'#666'};cursor:pointer;white-space:nowrap">${escapeHtml(m)}</button>`;
+  }).join('');
+
+  let html = `<div class="flex justify-between items-center mb-3">
+    <h3 class="font-bold text-lg">おすすめ持ち物を編集</h3>
+    <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+  </div>
+  <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px">${tabsHtml}</div>
+  <p class="text-xs text-gray-500 mb-2">「${escapeHtml(editingDefaultsMember)}」のおすすめリストを編集</p>`;
+
+  editingDefaultsData.forEach((g, gi) => {
+    html += `<div style="background:#fafaf8;border:1px solid #eee;border-radius:10px;padding:10px;margin-bottom:10px">
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+        <input type="text" value="${escapeHtml(g.cat)}" oninput="editingDefaultsData[${gi}].cat=this.value" style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-weight:700;font-size:14px;background:#fff" />
+        <button onclick="removeDefaultCat(${gi})" style="color:#d96b6b;background:none;border:none;font-size:18px;cursor:pointer;padding:4px 8px">×</button>
+      </div>`;
+    (g.items || []).forEach((it, ii) => {
+      html += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;padding-left:6px">
+        <span style="color:#aaa;font-size:14px">•</span>
+        <input type="text" value="${escapeHtml(it.name)}" oninput="editingDefaultsData[${gi}].items[${ii}].name=this.value" style="flex:1;padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:13px;background:#fff" />
+        <button onclick="removeDefaultItem(${gi}, ${ii})" style="color:#d96b6b;background:none;border:none;font-size:16px;cursor:pointer;padding:2px 6px">×</button>
+      </div>`;
+      if (it.subs && it.subs.length) {
+        it.subs.forEach((s, si) => {
+          html += `<div style="display:flex;gap:6px;align-items:center;margin-bottom:2px;padding-left:22px">
+            <span style="color:#bbb;font-size:11px">└</span>
+            <input type="text" value="${escapeHtml(s)}" oninput="editingDefaultsData[${gi}].items[${ii}].subs[${si}]=this.value" style="flex:1;padding:3px 8px;border:1px solid #eee;border-radius:6px;font-size:12px;color:#666;background:#fff" />
+            <button onclick="removeDefaultSub(${gi}, ${ii}, ${si})" style="color:#d96b6b;background:none;border:none;font-size:13px;cursor:pointer;padding:2px 6px">×</button>
+          </div>`;
+        });
+      }
+      html += `<div style="padding-left:22px;margin-bottom:6px"><button onclick="addDefaultSub(${gi}, ${ii})" style="font-size:11px;color:#888;background:none;border:none;cursor:pointer">+ サブ</button></div>`;
+    });
+    html += `<button onclick="addDefaultItem(${gi})" style="font-size:12px;color:#5a5245;background:#fff;border:1px dashed #d4c8b0;border-radius:6px;padding:5px 12px;cursor:pointer;margin-top:4px">+ アイテム追加</button>`;
+    html += `</div>`;
+  });
+
+  html += `<button onclick="addDefaultCat()" class="btn btn-outline w-full" style="font-size:13px;margin-bottom:12px">+ カテゴリ追加</button>
+    <div style="display:flex;gap:8px">
+      <button onclick="resetDefaults()" class="btn btn-outline" style="flex:1;color:#999;font-size:13px">初期に戻す</button>
+      <button onclick="saveDefaults()" class="btn btn-primary" style="flex:1">保存</button>
+    </div>`;
+
+  showModal(html);
+}
+
+async function switchEditDefaultsMember(name) {
+  editingDefaultsMember = name;
+  editingDefaultsData = JSON.parse(JSON.stringify(getCustomDefaults(name)));
+  renderEditDefaultsModal();
+}
+
+function removeDefaultCat(gi) {
+  if (!confirm('このカテゴリを削除しますか？')) return;
+  editingDefaultsData.splice(gi, 1);
+  renderEditDefaultsModal();
+}
+function removeDefaultItem(gi, ii) {
+  editingDefaultsData[gi].items.splice(ii, 1);
+  renderEditDefaultsModal();
+}
+function removeDefaultSub(gi, ii, si) {
+  editingDefaultsData[gi].items[ii].subs.splice(si, 1);
+  renderEditDefaultsModal();
+}
+function addDefaultItem(gi) {
+  editingDefaultsData[gi].items = editingDefaultsData[gi].items || [];
+  editingDefaultsData[gi].items.push({ name: '' });
+  renderEditDefaultsModal();
+}
+function addDefaultSub(gi, ii) {
+  if (!editingDefaultsData[gi].items[ii].subs) editingDefaultsData[gi].items[ii].subs = [];
+  editingDefaultsData[gi].items[ii].subs.push('');
+  renderEditDefaultsModal();
+}
+function addDefaultCat() {
+  editingDefaultsData.push({ cat: '新しいカテゴリ', items: [] });
+  renderEditDefaultsModal();
+}
+function saveDefaults() {
+  const cleaned = editingDefaultsData
+    .map(g => ({
+      cat: (g.cat || '').trim(),
+      items: (g.items || [])
+        .filter(i => i.name && i.name.trim())
+        .map(i => {
+          const out = { name: i.name.trim() };
+          if (i.important) out.important = true;
+          if (i.note) out.note = i.note;
+          if (i.subs && i.subs.length) {
+            const subs = i.subs.filter(s => s && s.trim()).map(s => s.trim());
+            if (subs.length) out.subs = subs;
+          }
+          return out;
+        })
+    }))
+    .filter(g => g.cat && g.items.length > 0);
+  saveCustomDefaults(editingDefaultsMember, cleaned);
+  closeModal();
+}
+function resetDefaults() {
+  if (!confirm('「' + editingDefaultsMember + '」のおすすめリストを初期状態に戻しますか？')) return;
+  resetCustomDefaults(editingDefaultsMember);
+  editingDefaultsData = JSON.parse(JSON.stringify(DEFAULT_PACKING_MEMBERS[editingDefaultsMember] || DEFAULT_PACKING));
+  renderEditDefaultsModal();
+}
+
+// ---- Default Items ----
+async function showAddDefaultItems() {
+  // Use member-specific defaults if available, otherwise generic
+  const packingData = getCustomDefaults(currentMember);
+
+  let html = `<div class="flex justify-between items-center mb-4">
+    <h3 class="font-bold text-lg">おすすめアイテム追加</h3>
+    <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+  </div>
+  <p class="text-sm text-gray-500 mb-3">「${escapeHtml(currentMember)}」におすすめアイテムを追加します</p>`;
+
+  for (const g of packingData) {
+    html += `<div class="packing-cat-header mb-1" style="margin-top:8px"><span>${escapeHtml(g.cat)}</span></div>`;
+    html += `<div class="text-sm text-gray-600 mb-2">${g.items.map(i => {
+      let t = escapeHtml(i.name);
+      if (i.important) t += ' ‼️';
+      if (i.note) t += ` <span style="color:#bbb">(${escapeHtml(i.note)})</span>`;
+      return t;
+    }).join('、')}</div>`;
+  }
+
+  html += `<button class="btn btn-primary w-full mt-2" id="addDefaultsBtn" onclick="addAllDefaults()">すべて追加</button>`;
+  showModal(html);
+}
+
+let isAddingDefaults = false;
+async function addAllDefaults() {
+  if (isAddingDefaults) return;
+  isAddingDefaults = true;
+  const btn = document.getElementById('addDefaultsBtn');
+  if (btn) { btn.textContent = '追加中...'; btn.style.opacity = '0.5'; btn.disabled = true; }
+  try {
+    const packingData = getCustomDefaults(currentMember);
+    const updates = {};
+    let order = 0;
+    for (const g of packingData) {
+      for (const item of g.items) {
+        const key = roomRef.child('packingItems').push().key;
+        updates['packingItems/' + key] = {
+          planId: currentPlanId, member: currentMember, category: g.cat,
+          name: item.name, checked: false, important: item.important || false, note: item.note || '', parentId: null, sortOrder: order++
+        };
+        if (item.subs) {
+          for (const sub of item.subs) {
+            const subKey = roomRef.child('packingItems').push().key;
+            updates['packingItems/' + subKey] = {
+              planId: currentPlanId, member: currentMember, category: g.cat,
+              name: sub, checked: false, important: false, note: '', parentId: key, sortOrder: 0
+            };
+          }
+        }
+      }
+    }
+    await roomRef.update(updates);
+    closeModal();
+    renderPackingList();
+  } finally {
+    isAddingDefaults = false;
+  }
+}
+
+// ---- Toggle / Delete ----
+async function togglePackingItem(id) {
+  const allItems = await getAllPackingItems();
+  const item = allItems.find(i => i.id === id);
+  if (item) {
+    const newChecked = !item.checked;
+    await roomRef.child('packingItems').child(id).update({ checked: newChecked });
+    // Also toggle sub-items
+    if (!item.parentId) {
+      const subs = allItems.filter(i => i.parentId === id);
+      for (const sub of subs) {
+        await roomRef.child('packingItems').child(sub.id).update({ checked: newChecked });
+      }
+    }
+    renderPackingList();
+  }
+}
+
+async function deletePackingItem(id) {
+  const allItems = await getAllPackingItems();
+  // Delete sub-items too
+  const subs = allItems.filter(i => i.parentId === id);
+  for (const sub of subs) {
+    await roomRef.child('packingItems').child(sub.id).remove();
+  }
+  await roomRef.child('packingItems').child(id).remove();
+  closeModal();
+  renderPackingList();
+}
+
+// ============ Sortable (Drag & Drop) ============
+function initSortable() {
+  // Category sorting (drag whole category blocks)
+  const catContainer = document.getElementById('catSortable');
+  if (catContainer && typeof Sortable !== 'undefined') {
+    Sortable.create(catContainer, {
+      animation: 200,
+      handle: '.cat-drag-handle',
+      draggable: '.cat-group',
+      delay: 400,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 8,
+      onEnd: async (evt) => {
+        const groups = catContainer.querySelectorAll('.cat-group');
+        const allItems = await getAllPackingItems();
+        const memberItems = allItems.filter(i => i.member === currentMember);
+        let order = 0;
+        for (const group of groups) {
+          const cat = group.dataset.cat;
+          const catItems = memberItems.filter(i => i.category === cat);
+          for (const item of catItems) {
+            await roomRef.child('packingItems').child(item.id).update({ sortOrder: order++ });
+          }
+        }
+        renderPackingList();
+      }
+    });
+
+    // Item sorting within each category
+    const itemContainers = document.querySelectorAll('.item-sortable');
+    for (const ic of itemContainers) {
+      Sortable.create(ic, {
+        animation: 200,
+        handle: '.drag-handle',
+        draggable: '.packing-item:not(.sub-item)',
+        group: 'items',
+        delay: 400,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 8,
+        onEnd: async (evt) => {
+          const container = evt.to;
+          const newCat = container.dataset.cat;
+          const itemEls = container.querySelectorAll('.packing-item:not(.sub-item)');
+          const allItems = await getAllPackingItems();
+          let order = 0;
+          for (const el of itemEls) {
+            const id = el.dataset.id;
+            if (id) {
+              await roomRef.child('packingItems').child(id).update({ sortOrder: order++, category: newCat });
+              const subs = allItems.filter(i => i.parentId === id);
+              for (const sub of subs) {
+                await roomRef.child('packingItems').child(sub.id).update({ category: newCat });
+              }
+            }
+          }
+          renderPackingList();
+        }
+      });
+    }
+  }
+}
+
+// ============ Tab Bar ============
+let currentTab = 'outfit';
+
+function switchTab(tab) {
+  currentTab = tab;
+  const outfitEls = document.querySelectorAll('#dayTabs, #dayCard, .export-grid-wrap');
+  const packingEl = document.getElementById('packingList');
+  const tabs = document.querySelectorAll('#bottomTabBar button');
+
+  tabs.forEach(t => { t.style.color = '#aaa'; t.style.fontWeight = '500'; t.style.borderBottom = '3px solid transparent'; });
+
+  if (tab === 'outfit') {
+    outfitEls.forEach(el => { if(el) el.style.display = ''; });
+    if (packingEl) packingEl.style.display = 'none';
+    if (tabs[0]) { tabs[0].style.color = '#5a5245'; tabs[0].style.fontWeight = '700'; tabs[0].style.borderBottom = '3px solid #5a5245'; }
+  } else {
+    outfitEls.forEach(el => { if(el) el.style.display = 'none'; });
+    if (packingEl) packingEl.style.display = '';
+    if (tabs[1]) { tabs[1].style.color = '#5a5245'; tabs[1].style.fontWeight = '700'; tabs[1].style.borderBottom = '3px solid #5a5245'; }
+  }
+}
+
+// Re-apply tab state after re-renders
+function applyTabState() {
+  switchTab(currentTab);
+}
+
+// ============ Direct Photo Upload ============
+// ============ Image Viewer ============
+async function openImageViewer(day, category, index) {
+  const allCells = await getAllCells();
+  const cell = allCells.find(c => c.day === day && c.category === category);
+  if (!cell || !cell.images || cell.images.length === 0) return;
+
+  let currentIdx = index;
+  const images = cell.images;
+
+  function renderViewer() {
+    const hasPrev = currentIdx > 0;
+    const hasNext = currentIdx < images.length - 1;
+    const counter = images.length > 1 ? `<div style="color:rgba(255,255,255,.7);font-size:.9rem;margin-top:8px">${currentIdx + 1} / ${images.length}</div>` : '';
+
+    const el = document.getElementById('imageViewer');
+    if (el) {
+      el.querySelector('.viewer-img').src = images[currentIdx];
+      el.querySelector('.viewer-counter').innerHTML = counter;
+      el.querySelector('.viewer-prev').style.display = hasPrev ? '' : 'none';
+      el.querySelector('.viewer-next').style.display = hasNext ? '' : 'none';
+    }
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'imageViewer';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  const hasPrev = currentIdx > 0;
+  const hasNext = currentIdx < images.length - 1;
+  const counter = images.length > 1 ? `${currentIdx + 1} / ${images.length}` : '';
+
+  overlay.innerHTML = `
+    <button onclick="this.parentElement.remove()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#fff;font-size:2rem;cursor:pointer;padding:8px;z-index:201">✕</button>
+    <button class="viewer-prev" onclick="event.stopPropagation();viewerNav(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:12px 16px;border-radius:50%;${hasPrev ? '' : 'display:none'}">‹</button>
+    <button class="viewer-next" onclick="event.stopPropagation();viewerNav(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:12px 16px;border-radius:50%;${hasNext ? '' : 'display:none'}">›</button>
+    <img class="viewer-img" src="${images[currentIdx]}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px" />
+    <div class="viewer-counter" style="color:rgba(255,255,255,.7);font-size:.9rem;margin-top:8px">${counter}</div>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <button onclick="event.stopPropagation();editCellFromViewer(${day},'${category}')" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:.9rem;cursor:pointer;padding:10px 20px;border-radius:24px">編集</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Swipe support for viewer
+  let vStartX = 0;
+  overlay.addEventListener('touchstart', e => { vStartX = e.touches[0].clientX; }, { passive: true });
+  overlay.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - vStartX;
+    if (Math.abs(dx) > 60) {
+      if (dx < 0 && currentIdx < images.length - 1) { currentIdx++; renderViewer(); }
+      else if (dx > 0 && currentIdx > 0) { currentIdx--; renderViewer(); }
+    }
+  }, { passive: true });
+
+  window.viewerNav = function(dir) {
+    currentIdx += dir;
+    if (currentIdx < 0) currentIdx = 0;
+    if (currentIdx >= images.length) currentIdx = images.length - 1;
+    renderViewer();
+  };
+}
+
+function editCellFromViewer(day, category) {
+  const viewer = document.getElementById('imageViewer');
+  if (viewer) viewer.remove();
+  editCell(day, category);
+}
+
+function directAddPhoto(day, category) {
+  // Show compact action sheet
+  const catLabel = CATEGORIES.find(c => c.key === category)?.label || category;
+  showModal(`
+    <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
+      <label style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#f8f8f8;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:600">
+        📸 カメラで撮影
+        <input type="file" accept="image/*" capture="environment" class="hidden" onchange="addImageToCell(${day},'${category}',this.files)" />
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#f8f8f8;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:600">
+        🖼 カメラロールから選択
+        <input type="file" accept="image/*" class="hidden" onchange="addImageToCell(${day},'${category}',this.files)" multiple />
+      </label>
+      <button onclick="closeModal();quickTextCell(${day},'${category}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#f8f8f8;border-radius:12px;cursor:pointer;font-size:1rem;font-weight:600;border:none;text-align:left;width:100%">
+        ✏️ テキストで入力
+      </button>
+      <button onclick="closeModal()" style="padding:12px;border:none;background:none;color:#999;font-size:.9rem;cursor:pointer">キャンセル</button>
+    </div>
+  `);
+}
+
+async function quickTextCell(day, category) {
+  const catLabel = CATEGORIES.find(c => c.key === category)?.label || category;
+  const date = new Date(currentPlan.startDate);
+  date.setDate(date.getDate() + day);
+  const dayNames = ['日','月','火','水','木','金','土'];
+  const dow = dayNames[date.getDay()];
+  const cell = await getCellByDayCategory(day, category);
+  const memo = cell?.memo || '';
+
+  showModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">${date.getMonth()+1}/${date.getDate()}(${dow}) - ${catLabel}</h3>
+      <button onclick="closeModal()" class="text-gray-400 text-2xl">&times;</button>
+    </div>
+    <textarea id="quickMemoText" class="w-full p-3 border rounded-lg" style="font-size:16px;min-height:100px" placeholder="例: グレーのニット、黒スキニー...">${escapeHtml(memo)}</textarea>
+    <button class="btn btn-primary w-full mt-3" onclick="saveQuickText(${day},'${category}')">保存</button>
+  `);
+  setTimeout(() => document.getElementById('quickMemoText')?.focus(), 300);
+}
+
+async function saveQuickText(day, category) {
+  const memo = document.getElementById('quickMemoText').value;
+  await upsertCell(day, category, { memo });
+  closeModal();
+  renderGrid();
+}
+
+// Member edit is now handled by ✏️ icon tap
+
+// ============ PWA Service Worker ============
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ============ Start ============
+init();
+</script>
+</body>
+</html>
